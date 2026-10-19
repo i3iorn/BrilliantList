@@ -12,6 +12,12 @@ import dev.schrammel.brilliantlist.core_model.RotationMode
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
     val settings by viewModel.settings.collectAsState()
 
+    // Local slider state: writing to DataStore on every drag step floods disk I/O
+    // and races with concurrent edits. Commit only when the drag settles.
+    var sliderValue by remember(settings.rotationIntervalMinutes) {
+        mutableStateOf(settings.rotationIntervalMinutes.toFloat())
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
@@ -27,12 +33,15 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
 
         Text("Widget Refresh Interval (minutes)")
         Slider(
-            value = settings.rotationIntervalMinutes.toFloat(),
-            onValueChange = { viewModel.onWidgetIntervalChange(it.toInt()) },
+            value = sliderValue,
+            onValueChange = { sliderValue = it },
+            onValueChangeFinished = {
+                viewModel.onWidgetIntervalChange(sliderValue.toInt())
+            },
             valueRange = 15f..120f,
             steps = 20
         )
-        Text("${settings.rotationIntervalMinutes} min")
+        Text("${sliderValue.toInt()} min")
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Rotation Mode")

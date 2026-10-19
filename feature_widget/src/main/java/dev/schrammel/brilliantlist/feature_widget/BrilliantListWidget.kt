@@ -44,7 +44,9 @@ class BrilliantListWidget : GlanceAppWidget() {
             context.applicationContext, WidgetEntryPoint::class.java
         ).entryRepository()
         val entry = repo.randomByType(EntryType.TEXT)
-            ?: repo.observeEntries().first().firstOrNull { !it.isDeleted }
+            // Fallback must also be a TEXT entry: image/audio entries have null
+            // textContent and would render the misleading placeholder message.
+            ?: repo.observeEntries().first().firstOrNull { !it.isDeleted && it.type == EntryType.TEXT }
 
         provideContent {
             Column(modifier = GlanceModifier.fillMaxSize().padding(16.dp)) {

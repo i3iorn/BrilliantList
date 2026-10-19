@@ -44,26 +44,38 @@ fun EntryScreen(viewModel: EntryViewModel = viewModel()) {
     ) { uri -> uri?.let(viewModel::addImageEntry) }
 
     fun startRecording() {
+        // Device hardware can fail (mic busy, codec error); guard against crash.
         val file = File.createTempFile("rec_", ".m4a", context.cacheDir)
         val rec = MediaRecorder(context)
-        rec.setAudioSource(MediaRecorder.AudioSource.MIC)
-        rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-        rec.setOutputFile(file.absolutePath)
-        rec.prepare()
-        rec.start()
-        recorder = rec
-        tempAudioFile = file
-        isRecording = true
+        runCatching {
+            rec.setAudioSource(MediaRecorder.AudioSource.MIC)
+            rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            rec.setOutputFile(file.absolutePath)
+            rec.prepare()
+            rec.start()
+            recorder = rec
+            tempAudioFile = file
+            isRecording = true
+        }.onFailure {
+            runCatching { rec.release() }
+            file.delete()
+        }
     }
 
     fun stopRecording() {
         recorder?.let { rec ->
-            runCatching {
+            val stopped = runCatching {
                 rec.stop()
                 rec.release()
+            }.isSuccess
+            // Only persist a recording that actually stopped cleanly; a failed stop
+            // produces an unreadable file.
+            if (stopped) {
+                tempAudioFile?.let(viewModel::addAudioEntry)
+            } else {
+                tempAudioFile?.delete()
             }
-            tempAudioFile?.let(viewModel::addAudioEntry)
         }
         recorder = null
         tempAudioFile = null

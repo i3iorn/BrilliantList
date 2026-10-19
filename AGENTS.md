@@ -1,67 +1,47 @@
 # AGENTS.md
 
-Privacy-first Android app (Kotlin, Compose, Hilt, Room+SQLCipher) for capturing small
-"brilliant things" via text/image/audio, with rotation engine and Glance widget.
+Guidance for AI coding agents working on the BrilliantList repository.
 
-## Build
+## Project Overview
 
-- `.\gradlew.bat <task>` — Gradle 9.4.1 wrapper, JVM toolchain **21** auto-provisioned via
-  `gradle/gradle-daemon-jvm.properties` (foojay resolver), so no local JDK install is needed.
-- AGP 9.2.0 uses **built-in Kotlin**; `org.jetbrains.kotlin.kapt` is incompatible and will fail
-  with "not compatible with built-in Kotlin support". All annotation processing (Hilt, Room)
-  uses **KSP** (`libs.plugins.ksp`, version 2.3.12 — the standalone KSP releases, not the
-  `<kotlin>-<ksp>` paired ones).
-- Hilt must be ≥ 2.57 (older versions fail on AGP 9 with `Android BaseExtension not found`);
-  the catalog pins 2.60.1. Room must be ≥ 2.7 for KSP2 support (pinned 2.8.5); Room 2.6.1
-  crashes with `unexpected jvm signature V`.
-- Version catalog: `gradle/libs.versions.toml`. Catalog aliases are hyphenated but referenced in
-  build scripts with **dots** (`libs.hilt.android`, not `libs.hilt-android` — hyphens parse as
-  Kotlin subtraction and fail with "Unresolved reference 'minus'"). Plugins applied per-module by
-  `alias(libs.plugins.…)`; bare `id("com.google.devtools.ksp")` does NOT work without a version.
-- Room codegen in `core_data` runs via KSP; `AppDatabase` exposes `entryDao()`.
+- **App:** "BrilliantList" — a privacy-first Android journaling/capture app.
+- **Stack:** Kotlin, Jetpack Compose (UI + Glance widgets), Clean Architecture.
+- **Persistence:** Room + SQLCipher (database at rest), Android Keystore (AES-GCM for media).
+- **DI:** Dagger Hilt.
+- **Async:** Kotlin Coroutines + Flow, WorkManager for scheduling (widget rotation).
 
-## Modules
+## Architectural Boundaries
 
-Single Gradle project; `settings.gradle.kts` lists 9 modules:
+- **Multi-module structure:** Follow clean architecture strictly.
+  - `core_model`: Pure Kotlin data classes (no Android dependencies).
+  - `core_data`: Room, DAOs, Repositories, SQLCipher integration. Features must *not* depend on this directly for logic, only via `core_data` repositories.
+  - `core_encryption`: Crypto primitives (Keystore helpers, AES-GCM wrappers). Do not implement crypto logic in feature modules.
+  - `feature_*`: UI and feature-specific logic. Features should depend on `core_data` for data access and `core_model` for entities.
+- **Data Flow:** UI (Compose) -> ViewModel -> Repository (core_data) -> DAO -> Room/SQLCipher.
 
-- `:app` — entrypoint (`MainActivity` `@AndroidEntryPoint`, `MainApp` `@HiltAndroidApp`, nav host).
-  minSdk **33**.
-- `:core_model` — pure Kotlin/JVM (no Android); `Entry`, `EntryType`, `Settings`, `RotationMode`,
-  `PublicEntry`. **Must stay annotation-free** — Room entities live in `core_data` instead.
-- `:core_data` — Room DB (`AppDatabase.build(context, passphrase)` wrapped in SQLCipher
-  `SupportFactory`). Contains `EntryEntity`, `EntryDao`, `EntryRepository`, `DatabaseKeyManager`
-  (keeps SQLCipher passphrase encrypted via Keystore), `mapper/EntryMappers.kt`, and
-  `di/DataModule.kt` (Hilt providers). `AppDatabaseTest` is an instrumented test.
-- `:core_encryption` — `CryptoManager`: AES-GCM streaming encrypt/decrypt, 12-byte IV prepended
-  to ciphertext, key from Android Keystore alias `brilliantlist_master_key`.
-  `CryptoManagerTest` is instrumented (Keystore is unavailable to JVM tests).
-- `:core_ui` — shared Compose components/theme (`EntryCard` accepts a `Modifier`).
-- `:feature_entry` — capture/list screen; the only feature module with `@HiltViewModel` + KSP.
-  Drag-and-drop reorder implemented with `detectDragGesturesAfterLongPress` in `EntryScreen`.
-- `:feature_widget` — Glance appwidget. Glance receivers can't use `@AndroidEntryPoint`; they
-  resolve dependencies via `@EntryPoint` + `EntryPointAccessors.fromApplication`. **Data must be
-  fetched before `provideContent {}`** — its lambda is not a coroutine scope. Widget receiver is
-  declared in `feature_widget/src/main/AndroidManifest.xml` with provider XML
-  `res/xml/brilliant_list_widget_info.xml`.
-- `:feature_crisis`, `:feature_settings` — standalone Compose screens.
+## Security & Encryption (Critical)
 
-Library modules are minSdk 23 while `:app` is 33 — don't "fix" the mismatch without deciding intent.
-Java compatibility is VERSION_11 in libraries, VERSION_21 in `:app`.
+- **NEVER store unencrypted data.** All database entries go through `SQLCipher` (`SupportFactory` in `AppDatabase`).
+- **NEVER bypass `CryptoManager`.** File-based media (images/audio) must be encrypted using `CryptoManager` (AES/GCM).
+- **Key Management:** Keys are derived from the Android Keystore. Do not store keys in `SharedPreferences` or code.
+- **Schema:** See `ENCRYPTION_MEDIA_PIPELINE.md` in the root for the media encryption pipeline design (IV-prefix strategy).
+- **Context Injection:** When injecting `android.content.Context` into Hilt-injected classes (e.g., Repositories, Workers), **always** use the `@ApplicationContext` qualifier from `dagger.hilt.android.qualifiers`. Bare `Context` will fail compilation with `Dagger/MissingBinding`.
+- **SQLCipher init:** `AppDatabase.build()` must call `SQLiteDatabase.loadLibs(context)` before constructing `SupportFactory`, otherwise the first DB open crashes with `UnsatisfiedLinkError`.
+- **Backups:** `android:allowBackup="false"` in the app manifest. Backing up the ciphertext DB without the (non-exportable) Keystore key makes it undecryptable after restore — and startup then crashes.
 
-## Commands
+## Conventions & Gotchas
 
-- Build all: `.\gradlew.bat build`
-- Single module JVM test: `.\gradlew.bat :core_model:test` (only module with plain JUnit;
-  `:core_encryption`/`:core_data` tests are instrumented/Android tests)
-- Instrumented tests: `.\gradlew.bat connectedAndroidTest` (requires emulator/device; adb is at
-  `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`)
-- No lint/typecheck/CI config exists in the repo.
+- **Database Migrations:** The database is encrypted. Be extremely careful with schema migrations in Room; verify decryption keys don't conflict with SQLCipher initialization.
+- **Reactive Data:** Use Kotlin `Flow` for all database and settings access. `SettingsRepository` uses DataStore, not SharedPreferences.
+- **Rotation Engine:** The widget rotation logic (`feature_widget` / `WidgetRotationWorker`) depends on `SettingsRepository` and `EntryRepository`. Do not poll the database directly from the widget; rely on WorkManager.
+- **WorkManager init:** `MainApp` implements `Configuration.Provider` (Hilt worker factory). The default `WorkManagerInitializer` MUST be removed from the app manifest (via `tools:node="remove"` on the `androidx.startup` provider) — otherwise eager default initialization wins and Hilt worker injection fails.
+- **Manifest permissions:** Any permission requested at runtime (`RECORD_AUDIO` for audio capture) must be declared in the app manifest, or `MediaRecorder` setup crashes with `SecurityException`.
+- **DataStore writes:** Don't write settings on every UI event (e.g., slider drag steps). Use local Compose state and commit on `onValueChangeFinished` / settled values to avoid flooding disk I/O.
+- **Glance widgets:** Data must be fetched before `provideContent {}` (its lambda isn't a coroutine scope). Widget text fallbacks must only use TEXT entries — image/audio entries have null `textContent`.
 
-## Non-negotiable constraints (product principles)
+## Building & Testing
 
-- Offline-first, no network calls unless explicitly enabled; no analytics/tracking/ads.
-- SQLCipher for DB, AES-GCM for media, Android Keystore keys, never export keys.
-- No dark patterns, engagement loops, streaks/gamification, feeds, or mood dashboards.
-- Capture must stay sub-2-second / no multi-step flows; every feature must justify its existence.
-- Accessibility is required, not optional.
-- Future sync (if added) must be end-to-end encrypted and zero-knowledge.
+- **Gradle Wrapper:** Use `./gradlew` (or `gradlew.bat`).
+- **Unit Tests:** `./gradlew :core_data:testDebugUnitTest` for database tests (requires Robolectric or JVM environment).
+- **Instrumented Tests:** `./gradlew :core_data:connectedAndroidTest` for Room/SQLCipher device tests.
+- **Lint:** `./gradlew lint`.

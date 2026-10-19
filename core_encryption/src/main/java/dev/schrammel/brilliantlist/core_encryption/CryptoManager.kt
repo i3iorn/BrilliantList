@@ -73,7 +73,14 @@ object CryptoManager {
     fun decrypt(input: InputStream, output: OutputStream) {
         val secretKey = getOrCreateSecretKey()
         val iv = ByteArray(IV_SIZE)
-        if (input.read(iv) != IV_SIZE) throw IllegalArgumentException("Invalid IV")
+        // A single read() may return fewer bytes than requested (partial read);
+        // loop until the full IV prefix is consumed or the stream ends.
+        var read = 0
+        while (read < IV_SIZE) {
+            val r = input.read(iv, read, IV_SIZE - read)
+            if (r == -1) throw IllegalArgumentException("Invalid IV: stream too short")
+            read += r
+        }
         val cipher = Cipher.getInstance(AES_MODE)
         cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(TAG_SIZE, iv))
         CipherInputStream(input, cipher).use { cipherIn ->

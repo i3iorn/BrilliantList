@@ -10,6 +10,14 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/core_data" />
+            <option value="$PROJECT_DIR$/core_encryption" />
+            <option value="$PROJECT_DIR$/core_model" />
+            <option value="$PROJECT_DIR$/core_ui" />
+            <option value="$PROJECT_DIR$/feature_crisis" />
+            <option value="$PROJECT_DIR$/feature_entry" />
+            <option value="$PROJECT_DIR$/feature_settings" />
+            <option value="$PROJECT_DIR$/feature_widget" />
           </set>
         </option>
       </GradleProjectSettings>
