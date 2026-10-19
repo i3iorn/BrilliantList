@@ -36,6 +36,8 @@
 - **Manifest permissions:** Any permission requested at runtime (`RECORD_AUDIO` for audio capture) must be declared in the app manifest, or `MediaRecorder` setup crashes with `SecurityException`.
 - **DataStore writes:** Don't write settings on every UI event (e.g., slider drag steps). Use local Compose state and commit on `onValueChangeFinished` / settled values to avoid flooding disk I/O.
 - **Glance widgets:** Data must be fetched before `provideContent {}` (its lambda isn't a coroutine scope). Widget text fallbacks must only use TEXT entries — image/audio entries have null `textContent`.
+- **Hilt app declaration:** The manifest's `<application>` MUST declare `android:name=".MainApp"` (the `@HiltAndroidApp` class). Omitting it means Hilt never initializes and every `@AndroidEntryPoint` activity crashes at launch with `IllegalStateException: Hilt Activity must be attached to an Application that uses @HiltAndroidApp`.
+- **ViewModel injection in Compose:** Screens composed inside navigation destinations MUST use `hiltViewModel()` (from `androidx.hilt:hilt-navigation-compose`, added to all feature modules). Plain `viewModel()` cannot construct ViewModels with injected constructor params and crashes with `RuntimeException: Cannot create an instance of class …`.
 
 ## Building & Testing
 

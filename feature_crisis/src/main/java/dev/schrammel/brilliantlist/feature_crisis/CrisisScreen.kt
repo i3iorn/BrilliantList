@@ -10,7 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import android.content.Intent
 import android.net.Uri
 import dev.schrammel.brilliantlist.core_model.CrisisResource
@@ -20,7 +20,7 @@ import dev.schrammel.brilliantlist.core_model.CrisisResource
  * Dialing uses the platform dialer (a phone call is not a data connection).
  */
 @Composable
-fun CrisisScreen(viewModel: CrisisViewModel = viewModel()) {
+fun CrisisScreen(viewModel: CrisisViewModel = hiltViewModel()) {
     val region by viewModel.region.collectAsState()
     val resources = viewModel.resourcesFor(region)
     val context = LocalContext.current

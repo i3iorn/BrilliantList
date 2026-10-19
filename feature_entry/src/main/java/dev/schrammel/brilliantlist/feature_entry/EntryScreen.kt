@@ -18,14 +18,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import dev.schrammel.brilliantlist.core_model.Entry
 import dev.schrammel.brilliantlist.core_ui.components.EntryCard
 import java.io.File
 import kotlin.math.roundToInt
 
 @Composable
-fun EntryScreen(viewModel: EntryViewModel = viewModel()) {
+fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
     val entries = viewModel.entries.collectAsState().value
     val listState = rememberLazyListState()
     val context = LocalContext.current
