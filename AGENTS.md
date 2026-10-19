@@ -1,7 +1,5 @@
 # AGENTS.md
 
-Guidance for AI coding agents working on the BrilliantList repository.
-
 ## Project Overview
 
 - **App:** "BrilliantList" — a privacy-first Android journaling/capture app.
