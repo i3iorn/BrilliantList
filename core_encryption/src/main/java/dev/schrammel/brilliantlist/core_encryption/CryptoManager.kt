@@ -31,6 +31,9 @@ object CryptoManager {
         )
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            // CryptoManager provides its own IV via GCMParameterSpec; Android Keystore
+            // rejects externally supplied IVs unless randomized encryption is disabled.
+            .setRandomizedEncryptionRequired(false)
             .setUserAuthenticationRequired(false)
             .build()
         keyGenerator.init(spec)
