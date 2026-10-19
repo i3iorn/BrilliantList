@@ -43,3 +43,12 @@ data class PublicEntry(
     val category: String
 )
 
+/**
+ * Region-specific crisis support resource, fully offline.
+ */
+data class CrisisResource(
+    val name: String,
+    val description: String,
+    val phone: String
+)
+

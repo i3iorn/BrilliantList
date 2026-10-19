@@ -26,6 +26,7 @@ dependencies {
     implementation(project(":core_data"))
     implementation(project(":core_model"))
     implementation(project(":core_ui"))
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

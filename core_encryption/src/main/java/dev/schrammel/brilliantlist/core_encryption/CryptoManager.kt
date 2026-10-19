@@ -52,6 +52,24 @@ object CryptoManager {
         }
     }
 
+    /**
+     * Streaming decryption for on-demand media reads: reads the IV prefix, then wraps
+     * the remainder of the input in a CipherInputStream. Caller must close the stream.
+     */
+    fun decryptToStream(input: InputStream): InputStream {
+        val iv = ByteArray(IV_SIZE)
+        var read = 0
+        while (read < IV_SIZE) {
+            val r = input.read(iv, read, IV_SIZE - read)
+            if (r == -1) throw IllegalArgumentException("Invalid IV: stream too short")
+            read += r
+        }
+        val secretKey = getOrCreateSecretKey()
+        val cipher = Cipher.getInstance(AES_MODE)
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(TAG_SIZE, iv))
+        return CipherInputStream(input, cipher)
+    }
+
     fun decrypt(input: InputStream, output: OutputStream) {
         val secretKey = getOrCreateSecretKey()
         val iv = ByteArray(IV_SIZE)

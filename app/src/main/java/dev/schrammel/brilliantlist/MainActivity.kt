@@ -36,13 +36,7 @@ fun AppNav() {
     val navController = rememberNavController()
     NavHost(navController, startDestination = "entries") {
         composable("entries") { EntryScreen() }
-        composable("crisis") { CrisisScreen(region = "US") }
-        composable("settings") {
-            SettingsScreen(
-                currentRegion = "US",
-                onRegionChange = {},
-                widgetInterval = 30,
-                onWidgetIntervalChange = {})
-        }
+        composable("crisis") { CrisisScreen() }
+        composable("settings") { SettingsScreen() }
     }
 }

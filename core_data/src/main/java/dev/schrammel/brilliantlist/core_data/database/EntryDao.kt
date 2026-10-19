@@ -29,4 +29,10 @@ interface EntryDao {
 
     @Query("SELECT * FROM entries WHERE isDeleted = 0 AND type = :type ORDER BY RANDOM() LIMIT 1")
     suspend fun getRandomByType(type: String): EntryEntity?
+
+    @Query("SELECT * FROM entries WHERE isDeleted = 0 AND type = :type ORDER BY position ASC")
+    suspend fun activeByTypeOrdered(type: String): List<EntryEntity>
+
+    @Query("SELECT * FROM entries WHERE id = :id LIMIT 1")
+    fun observeById(id: UUID): Flow<EntryEntity?>
 }
