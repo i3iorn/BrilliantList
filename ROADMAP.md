@@ -80,6 +80,10 @@ has never been proven.
   still there and the app starts.
 - The result goes into the release notes.
 
+**Done** (on the emulator, with the published v0.1.0 and the new build): the
+update installs over the old one, the journal is untouched and the app
+starts. It should be repeated on a real phone before the release goes out.
+
 **Size: S, but it needs a phone.**
 
 ### 0.4 The changelog

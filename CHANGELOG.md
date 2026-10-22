@@ -10,6 +10,7 @@ is built, and the tag of a release has to match it.
   that does not match it.
 - The CI starts the release build, so a broken shrinking fails the build
   instead of shipping.
+- The update over an installed v0.1.0 is proven: the journal stays untouched.
 
 ### The app says what it is
 - An "About" section with the version, the licence, the source and the
