@@ -1,0 +1,49 @@
+<resources>
+    <string name="settings_section_journal">Journal</string>
+    <string name="settings_section_widget">Home screen widget</string>
+    <string name="settings_section_privacy">Privacy</string>
+    <string name="settings_section_support">Support</string>
+    <string name="settings_region">Crisis region</string>
+    <string name="settings_region_unknown">Select a region</string>
+    <string name="settings_widget_interval">Widget refresh interval</string>
+    <string name="settings_minutes">%1$d min</string>`n    <string name="settings_hours">%1$d h</string>`n    <string name="settings_days">%1$d d</string>
+    <string name="settings_rotation_mode">Rotation mode</string>
+    <string name="settings_rotation_random">Random</string>
+    <string name="settings_rotation_sequential">Sequential</string>
+    <string name="settings_widget_auto_update">Widget auto update</string>
+    <string name="settings_entry_order">Entry order</string>
+    <string name="settings_order_manual">Manual</string>
+    <string name="settings_order_newest">Newest first</string>
+    <string name="settings_widget_show_content">Show entry text on the widget</string>
+    <!-- The app lock. -->
+    <string name="settings_app_lock">Lock the app</string>
+    <string name="settings_app_lock_summary">Ask for your screen lock before the journal opens.</string>
+    <string name="settings_app_lock_unavailable">This device has no screen lock. Set one up in the system settings to use the app lock.</string>
+    <!-- The backup. -->
+    <string name="settings_export">Export entries</string>
+    <string name="settings_export_summary">Save an encrypted copy of your journal to a file.</string>
+    <string name="settings_import">Import entries</string>
+    <string name="settings_import_summary">Restore an encrypted export.</string>
+    <string name="settings_action">Do it</string>
+    <string name="settings_export_passphrase_title">Protect the export</string>
+    <string name="settings_import_passphrase_title">Open the export</string>
+    <string name="settings_export_passphrase_text">The file is encrypted with this passphrase. You need it again to import the file - it is not stored anywhere.</string>
+    <string name="settings_passphrase_label">Passphrase</string>
+    <string name="settings_passphrase_repeat">Repeat the passphrase</string>`n    <string name="settings_passphrase_mismatch">The two passphrases are not the same</string>`n    <string name="settings_passphrase_strength">Strength: %1$s</string>`n    <string name="settings_passphrase_weak">weak</string>`n    <string name="settings_passphrase_fair">fair</string>`n    <string name="settings_passphrase_strong">strong</string>`n    <string name="settings_passphrase_too_short">The passphrase needs at least 8 characters.</string>
+    <string name="settings_export_done">The export was written</string>
+    <string name="settings_export_failed">The export could not be written</string>
+    <string name="settings_import_done">%1$d entries imported</string>
+    <string name="settings_import_failed">The file could not be read. Is the passphrase correct?</string>
+    <!-- The wipe. -->
+    <string name="settings_erase">Erase everything</string>
+    <string name="settings_erase_summary">Delete all entries, photos and recordings, and replace the encryption key.</string>
+    <string name="settings_erase_action">Erase</string>
+    <string name="settings_erase_confirm_title">Erase everything?</string>
+    <string name="settings_erase_confirm_text">All entries, photos and recordings are deleted and the encryption key is replaced. This cannot be undone.</string>
+    <string name="settings_erase_confirm_action">Erase everything</string>
+    <string name="settings_erase_done">Everything was erased</string>
+    <!-- What the app stores. -->
+    <string name="settings_stored_text">Your entries, photos and recordings are encrypted with a key that never leaves this device. Nothing is sent anywhere.</string>
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Cancel</string>
+</resources>
