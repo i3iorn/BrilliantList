@@ -76,9 +76,9 @@ jobs:
           if-no-files-found: ignore
 
   # The instrumented tests need the AndroidKeyStore, SQLCipher and a real
-  # screen, so they run on a managed device (an emulator without any hardware).
-  # They are the ones that catch the regressions a unit test cannot see: the
-  # accessibility checks, the key rotation and the backup round trip.
+  # screen, so they run on an emulator (without any hardware). They are the
+  # ones that catch the regressions a unit test cannot see: the accessibility
+  # checks, the key rotation and the backup round trip.
   instrumented:
     runs-on: ubuntu-latest
     steps:
@@ -93,8 +93,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # The managed device is an emulator, it needs the virtualisation of the
-      # runner.
+      # The emulator needs the virtualisation of the runner.
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -102,13 +101,19 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Run the instrumented tests
-        run: >-
-          ./gradlew
-          :app:pixel2api33DebugAndroidTest
-          :core_data:pixel2api33DebugAndroidTest
-          :core_encryption:pixel2api33DebugAndroidTest
-          :feature_entry:pixel2api33DebugAndroidTest
-          --max-workers=2 --stacktrace
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -camera-back none
+          script: >-
+            ./gradlew
+            :app:connectedDebugAndroidTest
+            :core_data:connectedDebugAndroidTest
+            :core_encryption:connectedDebugAndroidTest
+            :feature_entry:connectedDebugAndroidTest
+            --stacktrace
 
       - name: Upload the instrumented test results
         if: always()
