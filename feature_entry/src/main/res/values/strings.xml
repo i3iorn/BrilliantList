@@ -1,0 +1,48 @@
+<resources>
+    <!-- The capture field. The entry is saved with the keyboard, so a note
+         takes one step instead of a dialog. -->
+    <string name="entry_capture_label">Your brilliant thing</string>
+    <string name="entry_capture_hint">Capture a brilliant thing…</string>
+    <string name="entry_capture_action">Save entry</string>
+    <!-- The search. -->
+    <string name="entry_search">Search</string>
+    <string name="entry_search_hint">Search your entries</string>
+    <string name="entry_search_clear">Clear search</string>
+    <string name="entry_empty_search">Nothing matches your search.</string>
+    <!-- The trash. -->
+    <string name="entry_show_trash">Recently deleted</string>
+    <string name="entry_show_entries">Back to entries</string>
+    <string name="entry_empty_trash">Nothing was deleted.</string>
+    <string name="entry_trash_empty_action">Empty the trash</string>
+    <!-- The recording. -->
+    <string name="entry_recording">Recording %1$s</string>`n    <string name="entry_recording_limit">The recording was cut off, it reached the maximum length.</string>
+    <string name="entry_add_image">Add photo</string>
+    <string name="entry_record">Record audio</string>
+    <string name="entry_stop_recording">Stop recording</string>
+    <string name="entry_favorites">Favorites</string>
+    <string name="entry_empty">Nothing here yet. Add your first brilliant thing.</string>
+    <string name="entry_empty_action">Add an entry</string>
+    <string name="entry_empty_favorites">No favorites yet. Tap the heart on an entry to keep it here.</string>
+    <string name="entry_deleted_message">Entry deleted</string>
+    <string name="entry_error_image">That image could not be added</string>
+    <string name="entry_error_audio">That recording could not be saved</string>
+    <string name="entry_added_image">Image added</string>
+    <string name="entry_added_audio">Recording added</string>
+    <string name="entry_copied">Copied to the clipboard</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_copy">Copy</string>
+    <string name="entry_dialog_title">New entry</string>
+    <string name="entry_edit_title">Edit entry</string>
+    <string name="entry_dialog_label">Your brilliant thing</string>
+    <string name="entry_dialog_hint">Capture a brilliant thing…</string>
+    <string name="entry_play_audio">Play audio</string>
+    <string name="entry_stop_audio">Stop audio</string>
+    <string name="entry_audio_label">Audio recording</string>
+    <string name="entry_audio_position">%1$s of %2$s</string>
+    <string name="entry_image_description">Image attached to this entry</string>
+    <string name="entry_move_up">Move up</string>
+    <string name="entry_move_down">Move down</string>
+    <string name="entry_position">Position %1$d of %2$d</string>
+</resources>
