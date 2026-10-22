@@ -51,16 +51,13 @@ android {
                 "proguard-rules.pro"
             )
             // Without a configured release key the build is signed with the
-            // debug key, so it can be installed and tested. A build that is
-            // made in CI has to use a real key: the debug key is public.
+            // debug key, so it can be installed and tested. The build that
+            // ships may not be signed with it - the debug key is public, so
+            // anybody could replace such a build. The CI checks the
+            // signature of the APK (scripts/verify_privacy_invariants.py) and
+            // fails when it is the debug one.
             signingConfig = if (providers.gradleProperty("RELEASE_STORE_FILE").isPresent) {
                 signingConfigs.getByName("release")
-            } else if (providers.environmentVariable("CI").isPresent) {
-                throw GradleException(
-                    "A release build in CI needs a release key. Set " +
-                        "RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, " +
-                        "RELEASE_KEY_ALIAS and RELEASE_KEY_PASSWORD."
-                )
             } else {
                 signingConfigs.getByName("debug")
             }
