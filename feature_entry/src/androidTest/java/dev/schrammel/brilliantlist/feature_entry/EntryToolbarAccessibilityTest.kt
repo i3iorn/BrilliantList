@@ -8,7 +8,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -37,10 +36,10 @@ class EntryToolbarAccessibilityTest {
                 MaterialTheme {
                     EntryToolbar(
                         isRecording = false,
-                        favoritesOnly = false,
                         onPickImage = {},
                         onToggleRecording = {},
-                        onToggleFavorites = {}
+                        onAddLink = {},
+                        onPaste = {}
                     )
                 }
             }
@@ -53,9 +52,8 @@ class EntryToolbarAccessibilityTest {
 
         composeRule.onNodeWithContentDescription("Add photo").assertExists()
         composeRule.onNodeWithContentDescription("Record audio").assertExists()
-        composeRule.onNodeWithContentDescription("Favorites").assertExists()
-        composeRule.onNodeWithContentDescription("Search").assertExists()
-        composeRule.onNodeWithContentDescription("Recently deleted").assertExists()
+        composeRule.onNodeWithContentDescription("Add link").assertExists()
+        composeRule.onNodeWithContentDescription("Paste").assertExists()
     }
 
     @Test
@@ -65,9 +63,8 @@ class EntryToolbarAccessibilityTest {
         composeRule.onNodeWithContentDescription("Add photo").assertHeightIsAtLeast(48.dp)
         composeRule.onNodeWithContentDescription("Add photo").assertWidthIsAtLeast(48.dp)
         composeRule.onNodeWithContentDescription("Record audio").assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithContentDescription("Favorites").assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithContentDescription("Search").assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithContentDescription("Recently deleted").assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithContentDescription("Add link").assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithContentDescription("Paste").assertHeightIsAtLeast(48.dp)
     }
 
     @Test
@@ -77,8 +74,7 @@ class EntryToolbarAccessibilityTest {
         // Nothing may be clipped away at a large font scale.
         composeRule.onNodeWithContentDescription("Add photo").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Record audio").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Favorites").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Search").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Recently deleted").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Add link").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Paste").assertIsDisplayed()
     }
 }

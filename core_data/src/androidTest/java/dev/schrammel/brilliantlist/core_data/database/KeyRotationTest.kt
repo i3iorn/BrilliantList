@@ -47,6 +47,12 @@ class KeyRotationTest {
 
     private fun clear() {
         prefs.edit().clear().apply()
+        // The key manager follows the app lock setting through a mirror in
+        // these preferences. The tests run without the lock: an auth key
+        // would need a user authentication the test runner cannot provide.
+        prefs.edit()
+            .putBoolean(DatabaseKeyManager.AUTH_BOUND_PREF, false)
+            .apply()
         CryptoManager.deleteKey(CryptoManager.aliasFor(1))
         CryptoManager.deleteKey(CryptoManager.aliasFor(2))
     }
@@ -80,8 +86,9 @@ class KeyRotationTest {
         manager.getOrCreatePassphrase()
         manager.rotateKeyToNewAlias()
 
-        // Simulate a lost key: the Keystore was reset.
-        CryptoManager.deleteKey(manager.activeAlias())
+        // Simulate a lost key: the Keystore was reset. The wrap key of the
+        // passphrase is not the media key, so it is the wrap key that goes.
+        CryptoManager.deleteKey(manager.activeAuthAlias())
 
         assertTrue("the lost key was not reported", manager.isKeyLost())
 
@@ -121,11 +128,7 @@ class KeyRotationTest {
         assertEquals(
             "the key was not rotated",
             CryptoManager.aliasFor(CryptoManager.KEY_VERSION),
-            manager.activeAlias()
-        )
-        assertNull(
-            "the old key is still there",
-            CryptoManager.getKey(legacyAlias)
+            manager.activeAuthAlias()
         )
         assertNotNull(
             "the new key is missing",

@@ -9,13 +9,16 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.schrammel.brilliantlist.core_data.database.DatabaseKeyManager
 import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import dev.schrammel.brilliantlist.core_model.CrisisCatalog
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.Settings
 import dev.schrammel.brilliantlist.core_model.SortMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,7 +31,8 @@ private val Context.settingsStore: DataStore<Preferences> by preferencesDataStor
  */
 @Singleton
 class SettingsRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val keyManager: DatabaseKeyManager
 ) {
 
     private object Keys {
@@ -88,6 +92,21 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAppLockEnabled(enabled: Boolean) {
         context.settingsStore.edit { it[Keys.APP_LOCK_ENABLED] = enabled }
+        // The key manager decides synchronously whether the passphrase of a new
+        // install is wrapped by an auth key. Its decision follows this setting,
+        // so the mirror has to change with it.
+        context.getSharedPreferences(DatabaseKeyManager.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(DatabaseKeyManager.AUTH_BOUND_PREF, enabled)
+            .apply()
+        // A passphrase that is still wrapped by an auth key would ask for an
+        // authentication the app never performs once the lock is off: the
+        // journal could not be opened at all. Re-wrap it with the master key
+        // (works only while the journal is open, the plaintext is in the
+        // cache - otherwise the next passphrase write takes over).
+        if (!enabled) {
+            withContext(Dispatchers.IO) { keyManager.onAppLockDisabled() }
+        }
     }
 
     suspend fun setGroupByDay(enabled: Boolean) {

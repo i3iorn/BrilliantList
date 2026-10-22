@@ -67,32 +67,16 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
     /**
      * The alias of the key that protects the database passphrase.
      *
-     * When the device can authenticate, this is a key that requires user
-     * authentication. Otherwise it falls back to the master key, so a device
-     * without a screen lock still works.
+     * The passphrase is wrapped by one key of the current build: either an
+     * auth key that requires the user to authenticate (app lock on), or the
+     * master key (app lock off, or a device without a screen lock). Which one
+     * it is was decided when the passphrase was written and is stored next to
+     * it, so an existing install always keeps its wrap - a build that changes
+     * the policy must not silently re-wrap an installed passphrase, it would
+     * ask for an authentication the app never performed.
      */
-    fun activeAuthAlias(): String {
-        if (canAuthenticate(context)) {
-            return prefs.getString(AUTH_KEY_ALIAS, null)
-                ?: (CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + "_auth")
-        }
-        return activeAlias()
-    }
-
-    /**
-     * The key that protects the database passphrase.
-     *
-     * This key requires user authentication when the device supports it.
-     */
-    fun activeAuthKey(): SecretKey {
-        val alias = activeAuthAlias()
-        return CryptoManager.getKey(alias)
-            ?: if (canAuthenticate(context)) {
-                CryptoManager.createAuthKey(alias)
-            } else {
-                CryptoManager.createKey(alias)
-            }
-    }
+    fun activeAuthAlias(): String =
+        prefs.getString(AUTH_KEY_ALIAS, null) ?: activeAlias()
 
     /**
      * True when the device can ask for a biometric or the device credential.
@@ -116,6 +100,30 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         // auth key, which would prompt the user before they unlocked the app.
         runCatching { CryptoManager.createKey(activeAlias()) }
     }
+
+    /**
+     * The alias of the auth key that a *new* passphrase is wrapped with, when
+     * the app lock is on: a key that requires the user to prove who they are
+     * before the database can be opened.
+     */
+    private fun defaultAuthAlias(): String =
+        CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + "_auth"
+
+    /**
+     * Whether a passphrase that is written from now on is wrapped by an auth
+     * key.
+     *
+     * The binding follows the app lock: a user who switches the lock off has
+     * opted out of the authentication, so the journal opens without a prompt.
+     * The device still has to be unlocked ([CryptoManager.createKey] sets
+     * `setUnlockedDeviceRequired`), and a device without a screen lock cannot
+     * bind at all. The setting is mirrored into the preferences of this
+     * manager ([AUTH_BOUND_PREF]), so the check stays synchronous - the
+     * manager is called from the widget and the worker, where a DataStore
+     * read would block the caller.
+     */
+    private fun authWanted(): Boolean =
+        canAuthenticate(context) && prefs.getBoolean(AUTH_BOUND_PREF, true)
 
     /**
      * The key that protects the media files.
@@ -219,58 +227,122 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
     }
 
     /**
-     * Replaces the key with a new one.
+     * Re-wraps the passphrase with a key that does not require user
+     * authentication.
      *
-     * The passphrase is re-wrapped with the new key, so the database stays
-     * readable, and the old key is deleted. After this the data that the old
-     * key protected cannot be read any more - which is exactly what
-     * "erase everything" needs.
+     * Called when the user switches the app lock off: a passphrase that is
+     * still wrapped by an auth key would ask for an authentication the app
+     * never performs (the lock screen is skipped), and the journal could not
+     * be opened at all. The plaintext is only available in the cache, so this
+     * is a best effort - a passphrase that was written while the lock was on
+     * is re-wrapped here the first time the journal was opened.
      */
-    fun rotateKeyToNewAlias() {
+    fun onAppLockDisabled() {
+        val plaintext = cachedPassphrase ?: return
         val stored = prefs.getString(PASSPHRASE_KEY, null) ?: return
-        val oldAlias = activeAuthAlias()
-        val oldKey = CryptoManager.getKey(oldAlias) ?: return
+        // Only an auth-wrapped passphrase has to change. The alias records
+        // the type of the key, so this check needs no unlock.
+        if (prefs.getString(AUTH_KEY_ALIAS, null)?.endsWith("_auth") != true) return
 
-        val plaintext = ByteArrayOutputStream()
-        CryptoManager.decryptWithKey(
-            oldKey,
-            ByteArrayInputStream(Base64.decode(stored, Base64.NO_WRAP)),
-            plaintext
-        )
-
-        val newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + "_" +
-            System.currentTimeMillis()
-        val newKey = if (canAuthenticate(context)) {
-            CryptoManager.createAuthKey(newAlias)
-        } else {
-            CryptoManager.createKey(newAlias)
-        }
+        val oldAuthAlias = prefs.getString(AUTH_KEY_ALIAS, null)
+        val newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+        val newKey = CryptoManager.createKey(newAlias)
         val out = ByteArrayOutputStream()
-        CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(plaintext.toByteArray()), out)
-
+        CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(plaintext), out)
         prefs.edit()
             .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
             .putString(AUTH_KEY_ALIAS, newAlias)
             .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
             .apply()
-
-        CryptoManager.deleteKey(oldAlias)
+        if (oldAuthAlias != null && oldAuthAlias != newAlias) {
+            CryptoManager.deleteKey(oldAuthAlias)
+        }
     }
 
-    /** Creates a key of the current version and a fresh passphrase. */
+    /**
+     * Replaces the key with a new one.
+     *
+     * The media key and the key that wraps the passphrase are both replaced:
+     * the passphrase is re-wrapped with the new key, so the database stays
+     * readable, and the old keys are deleted. After this the data that the
+     * old keys protected cannot be read any more - which is exactly what
+     * "erase everything" needs.
+     */
+    fun rotateKeyToNewAlias() {
+        val stored = prefs.getString(PASSPHRASE_KEY, null) ?: return
+        val oldWrapAlias = activeAuthAlias()
+        val oldWrapKey = CryptoManager.getKey(oldWrapAlias) ?: return
+
+        val plaintext = ByteArrayOutputStream()
+        CryptoManager.decryptWithKey(
+            oldWrapKey,
+            ByteArrayInputStream(Base64.decode(stored, Base64.NO_WRAP)),
+            plaintext
+        )
+
+        // The media key is replaced as well: old copies of the media files
+        // must not stay readable with a key that still exists somewhere.
+        val oldMediaAlias = activeAlias()
+        val newMediaAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + "_" +
+            System.currentTimeMillis()
+        val newMediaKey = CryptoManager.createKey(newMediaAlias)
+
+        val newWrapAlias: String
+        val newWrapKey: SecretKey
+        if (authWanted()) {
+            newWrapAlias = defaultAuthAlias() + "_" + System.currentTimeMillis()
+            newWrapKey = CryptoManager.createAuthKey(newWrapAlias)
+        } else {
+            // Without the app lock the passphrase shares the media key, as it
+            // did in the versions before the auth key existed.
+            newWrapAlias = newMediaAlias
+            newWrapKey = newMediaKey
+        }
+
+        val out = ByteArrayOutputStream()
+        CryptoManager.encryptWithKey(newWrapKey, ByteArrayInputStream(plaintext.toByteArray()), out)
+
+        prefs.edit()
+            .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
+            .putString(KEY_ALIAS, newMediaAlias)
+            .putString(AUTH_KEY_ALIAS, newWrapAlias)
+            .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
+            .apply()
+
+        CryptoManager.deleteKey(oldMediaAlias)
+        if (oldWrapAlias != oldMediaAlias) {
+            CryptoManager.deleteKey(oldWrapAlias)
+        }
+    }
+
+    /** Creates a key of the current policy and a fresh passphrase. */
     private fun createFreshPassphrase(): ByteArray {
         val passphrase = ByteArray(PASSPHRASE_SIZE).also { SecureRandom().nextBytes(it) }
-        val alias = activeAuthAlias()
-        val key = activeAuthKey()
-        storePassphrase(passphrase, key, alias)
+        if (authWanted()) {
+            val alias = defaultAuthAlias()
+            storePassphrase(passphrase, CryptoManager.createAuthKey(alias), alias)
+        } else {
+            // The passphrase key and the media key are separate: the media
+            // key must never be recreated, it would make the existing files
+            // unreadable (there is no per-file key version).
+            val alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+            storePassphrase(passphrase, CryptoManager.createKey(alias), alias)
+        }
         return passphrase
     }
 
     /**
-     * Re-wraps the passphrase with a key of the current version.
+     * Re-wraps the passphrase with a key of the current specification.
      *
      * The new passphrase is written before the old key is deleted, so an
-     * interrupted rotation can never lose the database.
+     * interrupted rotation can never lose the database. The wrap type follows
+     * the current policy: an install whose passphrase was wrapped by the
+     * plain master key is re-wrapped by a key of the current version under
+     * its own alias - the media key must never be recreated here, it would
+     * make every photo and recording unreadable (there is no per-file key
+     * version). The old wrap key is only deleted when it protects nothing
+     * else: on installs that predate the versioning the wrap key is also the
+     * media key, and it has to survive.
      */
     private fun rotateKey(stored: String): ByteArray {
         val oldAlias = activeAuthAlias()
@@ -285,8 +357,17 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         )
         val passphrase = plaintext.toByteArray()
 
-        val newAlias = activeAuthAlias()
-        val newKey = activeAuthKey()
+        val newAlias: String
+        val newKey: SecretKey
+        if (authWanted() && prefs.getString(AUTH_KEY_ALIAS, null) != null) {
+            // The passphrase is already wrapped by an auth key of the current
+            // policy: keep the binding, only refresh the key itself.
+            newAlias = defaultAuthAlias()
+            newKey = CryptoManager.createAuthKey(newAlias)
+        } else {
+            newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+            newKey = CryptoManager.createKey(newAlias)
+        }
         val out = ByteArrayOutputStream()
         CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(passphrase), out)
 
@@ -296,7 +377,10 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
             .apply()
 
-        CryptoManager.deleteKey(oldAlias)
+        // The media key must survive: it still protects the existing files.
+        if (oldAlias != newAlias && oldAlias != activeAlias()) {
+            CryptoManager.deleteKey(oldAlias)
+        }
         return passphrase
     }
 
@@ -310,13 +394,23 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             .apply()
     }
 
-    private companion object {
+    companion object {
+        /** The SharedPreferences file that holds the wrapped database passphrase. */
         const val PREFS_NAME = "db_keys"
-        const val PASSPHRASE_KEY = "sqlcipher_passphrase"
-        const val KEY_VERSION = "key_version"
-        const val KEY_ALIAS = "key_alias"
-        const val AUTH_KEY_ALIAS = "auth_key_alias"
-        const val PASSPHRASE_SIZE = 32
+        private const val PASSPHRASE_KEY = "sqlcipher_passphrase"
+        private const val KEY_VERSION = "key_version"
+        private const val KEY_ALIAS = "key_alias"
+        private const val AUTH_KEY_ALIAS = "auth_key_alias"
+        private const val PASSPHRASE_SIZE = 32
+
+        /**
+         * The mirror of the app lock setting. Written by
+         * [dev.schrammel.brilliantlist.core_data.repository.SettingsRepository]
+         * whenever the setting changes; [DatabaseKeyManager.authWanted] reads
+         * it synchronously. Tests set it to false, so the passphrase is
+         * wrapped by the master key and no user authentication is needed.
+         */
+        const val AUTH_BOUND_PREF = "auth_bound"
 
         /** The version of the key that was used before the keys were versioned. */
         const val LEGACY_VERSION = 1
