@@ -9,10 +9,11 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.schrammel.brilliantlist.core_model.CrisisRegion
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.Settings
+import dev.schrammel.brilliantlist.core_model.SortMode
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,7 +22,8 @@ private val Context.settingsStore: DataStore<Preferences> by preferencesDataStor
 
 /**
  * Persists app settings in an encrypted-at-rest-compatible way: DataStore holds only
- * non-sensitive preferences (no keys, no entry content). SQLCipher protects content data.
+ * non-sensitive preferences (no keys, no entry content, no entry ids). SQLCipher
+ * protects content data; state that references an entry lives in [AppStateRepository].
  */
 @Singleton
 class SettingsRepository @Inject constructor(
@@ -32,10 +34,10 @@ class SettingsRepository @Inject constructor(
         val ROTATION_MODE = stringPreferencesKey("rotation_mode")
         val ROTATION_INTERVAL = intPreferencesKey("rotation_interval_minutes")
         val WIDGET_AUTO_UPDATE = booleanPreferencesKey("widget_auto_update")
-        val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val CRISIS_REGION = stringPreferencesKey("crisis_region")
-        val ENCRYPTION_ENABLED = booleanPreferencesKey("encryption_enabled")
-        val LAST_SHOWN_ENTRY = stringPreferencesKey("last_shown_entry_id")
+        val SORT_MODE = stringPreferencesKey("sort_mode")
+        val WIDGET_SHOW_CONTENT = booleanPreferencesKey("widget_show_content")
+        val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
     }
 
     val settings: Flow<Settings> = context.settingsStore.data.map { prefs ->
@@ -44,9 +46,12 @@ class SettingsRepository @Inject constructor(
                 ?: RotationMode.RANDOM,
             rotationIntervalMinutes = prefs[Keys.ROTATION_INTERVAL] ?: 30,
             widgetAutoUpdate = prefs[Keys.WIDGET_AUTO_UPDATE] ?: true,
-            notificationsEnabled = prefs[Keys.NOTIFICATIONS_ENABLED] ?: false,
-            crisisRegion = prefs[Keys.CRISIS_REGION] ?: "US",
-            encryptionEnabled = prefs[Keys.ENCRYPTION_ENABLED] ?: true
+            crisisRegion = prefs[Keys.CRISIS_REGION] ?: CrisisRegion.DEFAULT.code,
+            sortMode = prefs[Keys.SORT_MODE]?.let { SortMode.valueOf(it) } ?: SortMode.MANUAL,
+            // Privacy by default: journal text does not end up on the home
+            // screen until the user asks for it.
+            widgetShowContent = prefs[Keys.WIDGET_SHOW_CONTENT] ?: false,
+            appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: true
         )
     }
 
@@ -66,12 +71,15 @@ class SettingsRepository @Inject constructor(
         context.settingsStore.edit { it[Keys.CRISIS_REGION] = region }
     }
 
-    /** Remembers the entry id surfaced last so SEQUENTIAL rotation can advance. */
-    suspend fun setLastShownEntryId(id: String) {
-        context.settingsStore.edit { it[Keys.LAST_SHOWN_ENTRY] = id }
+    suspend fun setSortMode(mode: SortMode) {
+        context.settingsStore.edit { it[Keys.SORT_MODE] = mode.name }
     }
 
-    suspend fun lastShownEntryId(): String? =
-        context.settingsStore.data.map { it[Keys.LAST_SHOWN_ENTRY] }
-            .first() // one-shot read for the worker
+    suspend fun setWidgetShowContent(show: Boolean) {
+        context.settingsStore.edit { it[Keys.WIDGET_SHOW_CONTENT] = show }
+    }
+
+    suspend fun setAppLockEnabled(enabled: Boolean) {
+        context.settingsStore.edit { it[Keys.APP_LOCK_ENABLED] = enabled }
+    }
 }

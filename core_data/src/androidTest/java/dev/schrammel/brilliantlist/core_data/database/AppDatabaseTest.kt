@@ -2,7 +2,6 @@ package dev.schrammel.brilliantlist.core_data.database
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import net.sqlcipher.database.SupportFactory
 import org.junit.After
 import org.junit.Assert.assertNotNull
 import org.junit.Before

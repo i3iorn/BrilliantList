@@ -7,6 +7,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.schrammel.brilliantlist.core_data.database.AppDatabase
+import dev.schrammel.brilliantlist.core_data.database.AppStateDao
 import dev.schrammel.brilliantlist.core_data.database.DatabaseKeyManager
 import dev.schrammel.brilliantlist.core_data.database.EntryDao
 import javax.inject.Singleton
@@ -29,4 +30,7 @@ object DataModule {
 
     @Provides
     fun provideEntryDao(database: AppDatabase): EntryDao = database.entryDao()
+
+    @Provides
+    fun provideAppStateDao(database: AppDatabase): AppStateDao = database.appStateDao()
 }
