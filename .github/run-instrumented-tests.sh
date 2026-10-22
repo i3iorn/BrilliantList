@@ -22,3 +22,8 @@ echo "Setting a screen lock on the emulator."
   :core_encryption:connectedDebugAndroidTest \
   :feature_entry:connectedDebugAndroidTest \
   --stacktrace
+
+# The release build is the one that is published. It is shrunk with R8, so it
+# has to start somewhere - nothing else in the pipeline would notice a
+# missing keep rule.
+.github/check-release-build.sh

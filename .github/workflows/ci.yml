@@ -80,6 +80,9 @@ jobs:
   # ones that catch the regressions a unit test cannot see: the accessibility
   # checks, the key rotation and the backup round trip.
   instrumented:
+    # The release APK of the build job is checked here, so the job waits for
+    # it.
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -111,7 +114,15 @@ jobs:
           sudo rm -rf /opt/ghc /usr/local/share/boost
           df -h /
 
-      - name: Run the instrumented tests
+      # The release build of the build job: it is the one that is published,
+      # so it has to start.
+      - name: Download the release APK
+        uses: actions/download-artifact@v8
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release
+
+      - name: Run the instrumented tests and check the release build
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33

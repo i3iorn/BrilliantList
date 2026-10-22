@@ -28,6 +28,15 @@ a journal worth keeping open, and it does not yet say which version it is.
 | HEIC metadata removal | The photo picker hands out JPEG most of the time. A note in the app is honest, a half done HEIF parser is not. |
 | Splitting the modules | Invisible to the user. Only if the phases above are done and there is time. |
 
+### The decisions
+
+| Question | Answer |
+|---|---|
+| Does the repository stay private? | **No** - it is public, so the download URL works for everybody without a login, and an installer like Obtainium can update the app on its own. |
+| The day grouping: always, or a setting? | **A setting.** The entries are grouped by day, and the grouping can be switched off for a flat list. |
+| How fast should the app lock again? | **A setting.** The time until the journal locks again is chosen by the user: 30 seconds, a minute, five minutes, or only when the app is closed. |
+| HEIC: strip the metadata, or say so? | **Say so.** The photo picker hands out JPEG most of the time; a note in the app is honest, a half done HEIF parser is not. The stripping itself is planned for v0.3.0. |
+
 ---
 
 ## Phase 0 — The update path (blocks the release)
@@ -115,6 +124,8 @@ entries and the size on the disk make it a fact.
 A journal you cannot browse is a list you cannot read. "Today", "Yesterday",
 then the date - the same thing the timestamp says, but grouped.
 
+- **The grouping is a setting**: some people want a flat list, and the
+  entries are the same either way.
 - Files: `feature_entry/EntryList.kt`, `core_ui` (a section header), strings
 - Verify: a compose test that the headers are there; a look on the device.
 
@@ -184,7 +195,7 @@ is broken is worse than no backup, because it gives the feeling of safety.
 | Item | Size | Note |
 |---|---|---|
 | The clipboard is cleared after a minute | S | The text of an entry should not sit in the clipboard of the system for hours. |
-| The time until the app locks again becomes a setting | S | 30 seconds is a constant today. |
+| The time until the app locks again becomes a setting | M | 30 seconds is a constant today. The user chooses: 30 seconds, a minute, five minutes, or only when the app is closed. |
 | "Start over" asks before it deletes the journal | S | It deletes everything. |
 | The unused strings go (`entry_empty_action`, `entry_capture_action`, `crisis_call`) | S | They are leftovers; a string nobody reads is a lie about the screen. |
 | The empty state gets its "Add an entry" button | S | The string is there, the button is not. |
@@ -205,12 +216,5 @@ is broken is worse than no backup, because it gives the feeling of safety.
 
 ## The open questions
 
-1. **Does the repository stay private?** The download URL needs a GitHub login
-   while it is private. One command makes it public
-   (`gh repo edit i3iorn/BrilliantList --visibility public`), and then anybody
-   can install the app and updates itself.
-2. **The day grouping: always, or a setting?** Some people want a flat list.
-3. **The app lock: how fast should it lock again?** 30 seconds, a minute,
-   five minutes, or only when the app is closed?
-4. **HEIC: strip the metadata, or say so?** Stripping it is a day of work
-   with the container format; saying so is honest and free.
+None for now - the four that were open are decided (see the decisions above).
+If something else comes up, it goes here.

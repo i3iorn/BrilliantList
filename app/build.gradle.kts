@@ -1,8 +1,19 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+}
+
+// The version of the app lives in one place: version.properties in the root.
+// The release workflow checks that the tag of a release matches it.
+val appVersion = Properties().apply {
+    val file = rootProject.file("version.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -16,8 +27,8 @@ android {
     defaultConfig {
         applicationId = "dev.schrammel.brilliantlist"
         minSdk = 33
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersion.getProperty("versionCode")?.toIntOrNull() ?: 1
+        versionName = appVersion.getProperty("versionName") ?: "0.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -69,6 +80,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // The version of the app is shown in the settings.
+        buildConfig = true
     }
     testOptions {
         // A managed device runs the instrumented tests without any hardware.

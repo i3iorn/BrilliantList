@@ -36,6 +36,20 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      # The version of the app is written down in one place, and the tag of a
+      # release has to match it. Otherwise the build would carry a version
+      # that does not belong to the release.
+      - name: Check the version against the tag
+        run: |
+          VERSION="$(grep '^versionName=' version.properties | cut -d= -f2 | tr -d '[:space:]')"
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "The tag is $TAG but the app says $VERSION."
+            echo "Put the version into version.properties before you tag a release."
+            exit 1
+          fi
+          echo "The release carries the version $VERSION."
+
       # The key of the app. It is in the secrets of the repository, never in
       # the repository itself: Android only installs an update over an
       # installed app when the signature is the same.
