@@ -94,6 +94,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setAppLockEnabled(enabled) }
     }
 
+    fun onGroupByDayChange(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setGroupByDay(enabled) }
+    }
+
     /**
      * Writes an encrypted export of the journal to [uri].
      *

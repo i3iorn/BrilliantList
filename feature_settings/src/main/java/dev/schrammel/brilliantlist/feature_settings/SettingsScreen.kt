@@ -146,6 +146,13 @@ fun SettingsScreen(
                 )
             }
 
+            SwitchRow(
+                title = stringResource(R.string.settings_group_by_day),
+                summary = stringResource(R.string.settings_group_by_day_summary),
+                checked = settings.groupByDay,
+                onCheckedChange = viewModel::onGroupByDayChange
+            )
+
             SectionHeader(stringResource(R.string.settings_section_widget))
 
             Text(

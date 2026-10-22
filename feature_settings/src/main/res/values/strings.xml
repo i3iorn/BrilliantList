@@ -14,7 +14,7 @@
     <string name="settings_rotation_random">Random</string>
     <string name="settings_rotation_sequential">Sequential</string>
     <string name="settings_widget_auto_update">Widget auto update</string>
-    <string name="settings_entry_order">Entry order</string>
+    <string name="settings_entry_order">Entry order</string>`n    <string name="settings_group_by_day">Group entries by day</string>`n    <string name="settings_group_by_day_summary">The list shows the days as headings.</string>
     <string name="settings_order_manual">Manual</string>
     <string name="settings_order_newest">Newest first</string>
     <string name="settings_widget_show_content">Show entry text on the widget</string>

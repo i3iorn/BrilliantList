@@ -9,7 +9,7 @@
     <string name="entry_type_text">Empty note</string>
     <string name="entry_type_image">Image entry</string>
     <string name="entry_type_audio">Audio entry</string>
-    <string name="entry_time_today">Today at %1$s</string>
+    <string name="entry_day_today">Today</string>`n    <string name="entry_day_yesterday">Yesterday</string>`n    <string name="entry_time_today">Today at %1$s</string>
     <string name="entry_time_yesterday">Yesterday at %1$s</string>
     <!-- Announced when the card is opened. -->
     <string name="entry_open">Open entry</string>

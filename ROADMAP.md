@@ -151,9 +151,9 @@ and the reading touches the disk.
 
 ---
 
-## Phase 2 — The everyday list
+## Phase 2 - The everyday list (done)
 
-### 2.1 The entries are grouped by day (with a setting)
+### 2.1 The entries are grouped by day (done, with a setting)
 
 A journal you cannot browse is a list you cannot read. "Today", "Yesterday",
 then the date - the same thing the timestamp says, but grouped.
@@ -161,10 +161,10 @@ then the date - the same thing the timestamp says, but grouped.
 - **The setting**: `groupByDay: Boolean = true` in `Settings`,
   `group_by_day` in the DataStore, a switch in the journal section of the
   settings.
-- **The list**: the visible list is turned into a flat list of items - headers
-  and entries. A header is drawn when the date of an entry differs from the
-  date of the one before it, so the headers follow the order the user sees
-  (the manual order or the newest first).
+- **The list**: the heading of the day is drawn above the first entry of the
+  day. It belongs to the entry and is not a row of its own, so the order of
+  the list and the order of the entries stay the same - the drag to
+  reorder keeps working.
 - **The date**: the local date of the entry. The app needs API 26 for
   `java.time` and it needs 33, so it is there.
 - The header text: "Today", "Yesterday", otherwise the date in the format of
@@ -175,33 +175,26 @@ library, and a list of a few hundred entries does not need it.
 
 - Files: `core_model/Models.kt`, `core_data/.../SettingsRepository.kt`,
   `feature_entry/EntryList.kt`, `feature_settings/SettingsScreen.kt`, strings
-- Verify: a compose test that the headers are there, and one that they are
-  gone when the grouping is off.
+- Verify: dayStarts() is a pure function, so it is tested on the JVM
+  (DayGroupingTest).
 
-**Size: L.**
-
-### 2.2 The search says how much it found
+### 2.2 The search says how much it found (done)
 
 "12 entries" under the search field, so a search that finds nothing is
 obvious. The list is already in the ViewModel, so this is the size of the
 list it holds.
 
-**Size: S.**
-
-### 2.3 The search lets go of the keyboard
+### 2.3 The search lets go of the keyboard (done)
 
 The search field keeps the focus after the search, so the keyboard covers the
 list. The IME action "Search" gives the focus back.
 
-**Size: S.**
-
-### 2.4 The recording shows the time that is left
+### 2.4 The recording shows the time that is left (done)
 
 The recording stops after two minutes - that is a limit the user should see
-coming, not discover. The indicator shows the time that is left next to the
-elapsed time.
-
-**Size: S.**
+coming, not discover. The indicator sits on its own line above the toolbar
+(the microphone being on has to be obvious, and the time needs the room) and
+shows the elapsed time and the time that is left.
 
 ---
 
@@ -222,8 +215,6 @@ deletes the entries and their media at once.
 - Files: `feature_entry/EntryScreen.kt`, `feature_entry/EntryViewModel.kt`,
   strings
 
-**Size: S.**
-
 ---
 
 ## Phase 4 — The backup is honest
@@ -240,14 +231,10 @@ back.
 - The file is read, not written again, so the check costs one decryption.
 - If the check fails, the export is reported as broken instead of as done.
 
-**Size: M.**
-
 ### 4.2 The export says what it wrote
 
 "23 entries written" instead of "the export was written". The import already
 says how many entries it restored.
-
-**Size: S.**
 
 ---
 
@@ -265,22 +252,16 @@ minutes, or only when the app is closed.
   constant. `UNTIL_CLOSED` means the journal stays unlocked while the app is
   open - it locks again when the app is closed, which is the default anyway.
 
-**Size: M.**
-
 ### 5.2 The clipboard is cleared
 
 The text of an entry should not sit in the clipboard of the system for hours.
 A minute after the copy, the clipboard is cleared - but only if it still holds
 the text that was copied, so a copy of something else is not touched.
 
-**Size: S.**
-
 ### 5.3 "Start over" asks first
 
 The screen for a lost encryption key deletes the journal. That deserves a
 question first.
-
-**Size: S.**
 
 ---
 

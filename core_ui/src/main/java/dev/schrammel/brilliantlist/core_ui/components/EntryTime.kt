@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import dev.schrammel.brilliantlist.core_ui.R
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -28,6 +29,23 @@ fun formatEntryTime(timestamp: Long, now: Long = System.currentTimeMillis()): St
 }
 
 /**
+ * The day of a timestamp, in the time zone of the device.
+ *
+ * The list is grouped by it, so the day has to be the one the person sees on
+ * their clock.
+ */
+fun Long.toLocalDate(zone: ZoneId = ZoneId.systemDefault()): LocalDate =
+    Instant.ofEpochMilli(this).atZone(zone).toLocalDate()
+
+/** The day a header of the list shows. */
+@Composable
+fun formatDayHeader(date: LocalDate, today: LocalDate = LocalDate.now()): String = when (date) {
+    today -> stringResource(R.string.entry_day_today)
+    today.minusDays(1) -> stringResource(R.string.entry_day_yesterday)
+    else -> DATE_FORMAT.format(date)
+}
+
+/**
  * The formatters are created once.
  *
  * They are immutable and thread safe, and the list asks for the time of
@@ -38,3 +56,6 @@ private val TIME_FORMAT: DateTimeFormatter =
 
 private val DATE_TIME_FORMAT: DateTimeFormatter =
     DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+
+private val DATE_FORMAT: DateTimeFormatter =
+    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)

@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -48,6 +50,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -219,6 +223,22 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                     placeholder = { Text(stringResource(R.string.entry_search_hint)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    // The search is done, so the keyboard can go: it covers the
+                    // list it just filtered.
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    supportingText = if (query.isBlank()) {
+                        null
+                    } else {
+                        {
+                            Text(
+                                text = pluralStringResource(
+                                    R.plurals.entry_search_results,
+                                    entries.size,
+                                    entries.size
+                                )
+                            )
+                        }
+                    },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { viewModel.setQuery("") }) {
@@ -229,6 +249,15 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                             }
                         }
                     },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // The recording is visible on its own line: that the microphone is
+            // on has to be obvious, and the time that is left needs the room.
+            if (recorder.isRecording) {
+                RecordingIndicator(
+                    elapsedSeconds = recorder.elapsedSeconds,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -290,6 +319,7 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
             } else {
                 EntryList(
                     entries = entries,
+                    groupByDay = settings.groupByDay,
                     favoritesOnly = favoritesOnly,
                     manualOrder = settings.sortMode == SortMode.MANUAL,
                     inTrash = false,
@@ -397,12 +427,6 @@ internal fun EntryToolbar(
             )
         }
 
-        val recordingLabel = if (isRecording) {
-            stringResource(R.string.entry_recording, formatSeconds(recordingSeconds))
-        } else {
-            null
-        }
-
         IconButton(
             onClick = onToggleRecording,
             modifier = Modifier.size(48.dp)
@@ -417,16 +441,8 @@ internal fun EntryToolbar(
             )
         }
 
-        if (recordingLabel != null) {
-            // The recording has to be visible, otherwise the user does not
-            // know that the microphone is on. The label is the announcement,
-            // the button says that it stops the recording.
-            Text(
-                text = recordingLabel,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
+        // The recording itself is shown above the toolbar, so the button only
+        // says that it stops the recording.
 
         // The toggles carry their state, so a screen reader says whether they
         // are on. The label stays the same, so it is still understandable
@@ -467,6 +483,40 @@ internal fun EntryToolbar(
                 contentDescription = stringResource(R.string.entry_show_trash)
             )
         }
+    }
+}
+
+/**
+ * The indicator of a running recording.
+ *
+ * That the microphone is on has to be obvious, and the recording stops after
+ * two minutes - so the time that is left is shown as well.
+ */
+@Composable
+private fun RecordingIndicator(elapsedSeconds: Int, modifier: Modifier = Modifier) {
+    val remaining = (AudioRecorder.MAX_DURATION_SECONDS - elapsedSeconds).coerceAtLeast(0)
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_mic),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onErrorContainer
+        )
+        Text(
+            text = stringResource(
+                R.string.entry_recording_running,
+                formatSeconds(elapsedSeconds),
+                formatSeconds(remaining)
+            ),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.padding(start = 8.dp)
+        )
     }
 }
 

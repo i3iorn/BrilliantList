@@ -56,6 +56,13 @@ data class Settings(
     /** Whether the home screen widget renders the entry text. */
     val widgetShowContent: Boolean,
     /**
+     * Whether the list is grouped by the day of the entries.
+     *
+     * A journal you cannot browse is a list you cannot read - but some
+     * people want a flat list, so it is a setting.
+     */
+    val groupByDay: Boolean = true,
+    /**
      * Whether the app asks for the device credential / a biometric before it
      * shows any journal content.
      *

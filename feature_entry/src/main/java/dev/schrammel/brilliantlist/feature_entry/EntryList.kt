@@ -3,6 +3,7 @@ package dev.schrammel.brilliantlist.feature_entry
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,7 +27,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.schrammel.brilliantlist.core_model.Entry
 import dev.schrammel.brilliantlist.core_ui.components.EntryCard
+import dev.schrammel.brilliantlist.core_ui.components.formatDayHeader
 import dev.schrammel.brilliantlist.core_ui.components.formatEntryTime
+import dev.schrammel.brilliantlist.core_ui.components.toLocalDate
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 /**
@@ -51,7 +56,8 @@ fun EntryList(
     modifier: Modifier = Modifier,
     inTrash: Boolean = false,
     onRestore: ((Entry) -> Unit)? = null,
-    emptyText: String? = null
+    emptyText: String? = null,
+    groupByDay: Boolean = true
 ) {
     // The trash shows the deleted entries, everywhere else they are hidden.
     val active = if (inTrash) entries else entries.filterNot { it.isDeleted }
@@ -76,6 +82,12 @@ fun EntryList(
     val moveUpLabel = stringResource(R.string.entry_move_up)
     val moveDownLabel = stringResource(R.string.entry_move_down)
     val positionTemplate = stringResource(R.string.entry_position)
+
+    // The day the entries are grouped by. The day of an entry is the one on
+    // the clock of the device.
+    val today = remember { LocalDate.now() }
+    // Which entries are the first of their day.
+    val startsADay = remember(visible) { dayStarts(visible) }
 
     LazyColumn(
         state = listState,
@@ -156,18 +168,60 @@ fun EntryList(
                 Modifier
             }
 
-            EntryCard(
-                entry = entry,
-                modifier = dragModifier.then(accessibilityModifier),
-                onClick = if (inTrash) null else onEdit?.let { edit -> { edit(entry) } },
-                onDelete = { onDelete(entry) },
-                onRestore = onRestore?.let { restore -> { restore(entry) } },
-                onToggleFavorite = onToggleFavorite?.let { toggle -> { toggle(entry) } },
-                mediaContent = { EntryMedia(entry, mediaLoader) },
-                positionDescription = String.format(positionTemplate, index + 1, visible.size),
-                timestamp = formatEntryTime(entry.createdAt)
-            )
+            // The heading of the day is drawn above the first entry of the
+            // day. It belongs to the entry and is not a row of its own, so
+            // the order of the list and the order of the entries stay the
+            // same - the drag to reorder keeps working.
+            val day = entry.createdAt.toLocalDate()
+            val showsADay = groupByDay && startsADay.getOrElse(index) { true }
+
+            Column {
+                if (showsADay) {
+                    DayHeader(day = day, today = today)
+                }
+                EntryCard(
+                    entry = entry,
+                    modifier = dragModifier.then(accessibilityModifier),
+                    onClick = if (inTrash) null else onEdit?.let { edit -> { edit(entry) } },
+                    onDelete = { onDelete(entry) },
+                    onRestore = onRestore?.let { restore -> { restore(entry) } },
+                    onToggleFavorite = onToggleFavorite?.let { toggle -> { toggle(entry) } },
+                    mediaContent = { EntryMedia(entry, mediaLoader) },
+                    positionDescription = String.format(positionTemplate, index + 1, visible.size),
+                    timestamp = formatEntryTime(entry.createdAt)
+                )
+            }
         }
+    }
+}
+
+/** The heading of a day in the list. */
+@Composable
+private fun DayHeader(day: LocalDate, today: LocalDate) {
+    Text(
+        text = formatDayHeader(day, today),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, top = 12.dp, bottom = 4.dp)
+    )
+}
+
+/**
+ * Which entries are the first of their day.
+ *
+ * The list is grouped by the day the entries were written, in the order the
+ * user sees them. Pure function, so it can be tested on the JVM.
+ */
+internal fun dayStarts(
+    entries: List<Entry>,
+    zone: ZoneId = ZoneId.systemDefault()
+): List<Boolean> {
+    var lastDay: LocalDate? = null
+    return entries.map { entry ->
+        val day = entry.createdAt.toLocalDate(zone)
+        val starts = day != lastDay
+        lastDay = day
+        starts
     }
 }
 

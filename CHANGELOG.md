@@ -22,9 +22,10 @@ is built, and the tag of a release has to match it.
   licence nobody may use the code.
 
 ### The everyday list
-- The entries are grouped by day.
+- The entries are grouped by day, and the grouping can be switched off.
 - The search says how much it found.
-- The recording shows how long is left before it stops.
+- The search lets go of the keyboard, so it stops covering the list.
+- The recording shows the time that is left before it stops.
 - The trash is a separate place: the capture actions are switched off there.
 - "Empty the trash".
 

@@ -8,6 +8,11 @@
     <string name="entry_search">Search</string>
     <string name="entry_search_hint">Search your entries</string>
     <string name="entry_search_clear">Clear search</string>
+    <!-- The number of entries the search found. -->
+    <plurals name="entry_search_results">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
     <string name="entry_empty_search">Nothing matches your search.</string>
     <!-- The trash. -->
     <string name="entry_show_trash">Recently deleted</string>
@@ -15,7 +20,7 @@
     <string name="entry_empty_trash">Nothing was deleted.</string>
     <string name="entry_trash_empty_action">Empty the trash</string>
     <!-- The recording. -->
-    <string name="entry_recording">Recording %1$s</string>`n    <string name="entry_recording_limit">The recording was cut off, it reached the maximum length.</string>
+    <string name="entry_recording">Recording %1$s</string>`n    <string name="entry_recording_running">Recording %1$s � %2$s left</string>`n    <string name="entry_recording_limit">The recording was cut off, it reached the maximum length.</string>
     <string name="entry_add_image">Add photo</string>
     <string name="entry_record">Record audio</string>
     <string name="entry_stop_recording">Stop recording</string>

@@ -38,6 +38,7 @@ class SettingsRepository @Inject constructor(
         val SORT_MODE = stringPreferencesKey("sort_mode")
         val WIDGET_SHOW_CONTENT = booleanPreferencesKey("widget_show_content")
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
+        val GROUP_BY_DAY = booleanPreferencesKey("group_by_day")
     }
 
     val settings: Flow<Settings> = context.settingsStore.data.map { prefs ->
@@ -51,7 +52,8 @@ class SettingsRepository @Inject constructor(
             // Privacy by default: journal text does not end up on the home
             // screen until the user asks for it.
             widgetShowContent = prefs[Keys.WIDGET_SHOW_CONTENT] ?: false,
-            appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: true
+            appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: true,
+            groupByDay = prefs[Keys.GROUP_BY_DAY] ?: true
         )
     }
 
@@ -81,5 +83,9 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAppLockEnabled(enabled: Boolean) {
         context.settingsStore.edit { it[Keys.APP_LOCK_ENABLED] = enabled }
+    }
+
+    suspend fun setGroupByDay(enabled: Boolean) {
+        context.settingsStore.edit { it[Keys.GROUP_BY_DAY] = enabled }
     }
 }
