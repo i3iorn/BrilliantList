@@ -125,13 +125,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -camera-back none
           # The image of the runner asks for more disk than the runner has.
           pre-emulator-launch-script: .github/emulator-setup.sh
-          script: >-
-            ./gradlew
-            :app:connectedDebugAndroidTest
-            :core_data:connectedDebugAndroidTest
-            :core_encryption:connectedDebugAndroidTest
-            :feature_entry:connectedDebugAndroidTest
-            --stacktrace
+          script: .github/run-instrumented-tests.sh
 
       - name: Upload the instrumented test results
         if: always()
