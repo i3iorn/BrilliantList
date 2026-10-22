@@ -100,6 +100,17 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # The emulator needs seven gigabytes for the user data partition and the
+      # runner does not have that much free. The NDK, the older platforms and
+      # the toolchains that are not part of this project go.
+      - name: Free disk space for the emulator
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          sudo rm -rf "$SDK/ndk" "$SDK/ndk-bundle" "$SDK/cmake"
+          sudo rm -rf "$SDK"/platforms/android-3[0-5]
+          sudo rm -rf /opt/ghc /usr/local/share/boost
+          df -h /
+
       - name: Run the instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
