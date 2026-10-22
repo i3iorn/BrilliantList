@@ -65,7 +65,9 @@ class KeyRotationTest {
         assertTrue("the passphrase is too short", passphrase.size >= 32)
 
         val aliasBefore = manager.activeAlias()
-        assertNotNull(CryptoManager.getKey(aliasBefore))
+        // The passphrase key and the media key are separate keys. What has
+        // to exist after the first use is the wrap key of the passphrase.
+        assertNotNull(CryptoManager.getKey(manager.activeAuthAlias()))
 
         // Replace the key: the data stays readable, the old key is gone.
         manager.rotateKeyToNewAlias()
