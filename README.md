@@ -2,6 +2,13 @@
 
 *A gentle, private space to collect and revisit the small, brilliant things in life.*
 
+## Download
+**[Download the latest APK](https://github.com/i3iorn/BrilliantList/releases/latest/download/app-release.apk)** — open it on your phone and Android asks once for the permission to install apps. That is the one step a sideloaded app needs.
+
+Every release is signed with the same key, so a new APK installs over the one you have and keeps your journal. [Obtainium](https://github.com/Obtainium/Obtainium) can install and update it for you if you would rather not download anything by hand — add this repository and give it the signing fingerprint below.
+
+The app is not in the Play Store, and it will not need one: it has no internet permission at all, no analytics and no ads, and it never sends anything anywhere.
+
 ## What is BrilliantList?
 BrilliantList is a minimal, privacy-first Android app designed to help you notice and remember moments of happiness, joy, and meaning. Whether it's a kind word, a beautiful scene, or a fleeting thought, BrilliantList makes it easy to capture and revisit what matters—especially for those who need a little more light in their day.
 
@@ -32,15 +39,34 @@ BrilliantList is an independent, unofficial app. It is not affiliated with, endo
 - No dark patterns, engagement loops, or gamification
 - Strong privacy and security practices (see [SECURITY.md](SECURITY.md))
 
-## Quick Start
+## Install from a release
+1. Download the APK from the [releases](https://github.com/i3iorn/BrilliantList/releases/latest) — or use the direct link at the top of this page.
+2. Open it on your phone. Android asks once for the permission to install apps from this source; that is the only step a sideloaded app needs.
+3. The app opens the entries screen. That is it.
+
+To update, download the newer APK and open it: Android replaces the installed app and keeps the journal.
+
+The signing fingerprint of every release, so an installer can check that the app really is this one:
+
+```
+SHA-256: ba29f3639ed9f7ba5408babe422f16f2fd8ae0f0cf960a444730520070536f00
+```
+
+## Build from the source
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/BrilliantList.git
+   git clone https://github.com/i3iorn/BrilliantList.git
    ```
 2. Open in Android Studio.
 3. Build and run on your device or emulator.
 
+A release build needs the key of the app. It is not in the repository — create it once with `python3 scripts/create_release_key.py` and put the values into the secrets of the repository (`RELEASE_KEYSTORE_BASE64`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`). The CI signs the release with them.
+
 **Tech Stack:** Kotlin, Jetpack Compose, Room (with SQLCipher), WorkManager, Glance widgets, Hilt DI, Clean Architecture.
+
+## The pipeline
+- **CI** (`.github/workflows/ci.yml`): every push builds the app, runs the unit tests, builds the signed release APK and checks the privacy invariants. The instrumented tests run on a managed device, so the accessibility checks, the key rotation and the backup round trip are part of the build.
+- **Release** (`.github/workflows/release.yml`): a tag (`v0.1.0`) publishes the signed APK, its checksum and the R8 mapping as a GitHub release.
 
 ## Contributing
 Contributions are welcome! There are no formal guidelines yet—if you have ideas or improvements, feel free to open an issue or pull request.

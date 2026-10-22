@@ -30,7 +30,9 @@ android {
         create("release") {
             val storeFilePath = providers.gradleProperty("RELEASE_STORE_FILE").orNull
             if (storeFilePath != null) {
-                storeFile = file(storeFilePath)
+                // The path is relative to the root project, so the same
+                // property works locally and in the CI.
+                storeFile = rootProject.file(storeFilePath)
                 storePassword = providers.gradleProperty("RELEASE_STORE_PASSWORD").orNull
                 keyAlias = providers.gradleProperty("RELEASE_KEY_ALIAS").orNull
                 keyPassword = providers.gradleProperty("RELEASE_KEY_PASSWORD").orNull

@@ -17,3 +17,7 @@
 local.properties
 __pycache__/
 *.pyc
+# The release key of the app. It is in the repository secrets, never in the
+# repository: Android only installs an update over an installed app when the
+# signature is the same.
+/keystore/
