@@ -115,10 +115,11 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
-          # The image for automated tests: it is much smaller than the full
-          # system image, so it fits on the disk of the runner, and it boots
-          # in a fraction of the time.
-          target: aosp_atd
+          # The full system image, not the one for automated tests: the
+          # Keystore of the stripped image cannot create a key that needs the
+          # hardware of the device, and the key of the app is exactly such a
+          # key.
+          target: default
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -camera-back none
