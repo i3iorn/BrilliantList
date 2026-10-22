@@ -1,0 +1,16 @@
+<resources>
+    <string name="entry_favorite">Add to favorites</string>
+    <string name="entry_unfavorite">Remove from favorites</string>
+    <string name="entry_delete">Delete entry</string>
+    <!-- The delete button of an entry that is already in the trash. -->
+    <string name="entry_delete_forever">Delete forever</string>
+    <string name="entry_restore">Restore</string>
+    <string name="entry_copy">Copy text</string>
+    <string name="entry_type_text">Empty note</string>
+    <string name="entry_type_image">Image entry</string>
+    <string name="entry_type_audio">Audio entry</string>
+    <string name="entry_time_today">Today at %1$s</string>
+    <string name="entry_time_yesterday">Yesterday at %1$s</string>
+    <!-- Announced when the card is opened. -->
+    <string name="entry_open">Open entry</string>
+</resources>

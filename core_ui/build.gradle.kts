@@ -25,4 +25,7 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    // The core icon set comes with material3 (api dependency). It is not
+    // declared explicitly: an explicit declaration makes lint resolve the
+    // multiplatform desktop artifact, which is not in the dependency cache.
 }
