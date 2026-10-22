@@ -19,7 +19,16 @@ data class Entry(
 )
 
 enum class EntryType {
-    TEXT, IMAGE, AUDIO
+    TEXT, IMAGE, AUDIO,
+
+    /**
+     * A web address. The text of the entry is the address.
+     *
+     * Only http and https addresses are accepted, and the card shows the
+     * address as text before it opens the browser (see the roadmap for the
+     * two rules).
+     */
+    LINK
 }
 
 /**
@@ -124,6 +133,64 @@ data class JournalStats(
     val totalBytes: Long get() = mediaBytes + databaseBytes
 }
 
+/** How a crisis line can be reached. */
+enum class HelplineMethod {
+    PHONE,
+    TEXT
+}
+
+/** One way of reaching a crisis line. */
+data class HelplineContact(
+    val method: HelplineMethod,
+    val number: String,
+    /** When the line is open, in the words of the line. */
+    val hours: String = "",
+    /** The languages the line answers in, as language codes. */
+    val languages: List<String> = emptyList(),
+    val free: Boolean = false,
+    val anonymous: Boolean = false,
+    /** The body of a text message, when the line is a text service. */
+    val messageBody: String? = null,
+    /** The instruction for a text service. */
+    val instruction: String? = null
+)
+
+/**
+ * A crisis line of a country.
+ *
+ * The records come from the open-helplines registry, see
+ * [HELPLINE_CATALOG].
+ */
+data class Helpline(
+    val id: String,
+    val country: String,
+    val name: String,
+    /** The name in the language of the country. */
+    val localName: String? = null,
+    val description: String = "",
+    val website: String = "",
+    /** The day the number was last checked. */
+    val verifiedAt: String = "",
+    val contacts: List<HelplineContact> = emptyList()
+)
+
+/**
+ * A country the crisis page knows.
+ *
+ * The emergency number is the one number that has to be right, so it is
+ * written down here and not taken from the registry.
+ */
+data class CrisisCountry(
+    /** The code of the country, for example "SE". */
+    val code: String,
+    /** The name of the country in English. */
+    val name: String,
+    /** The name of the country in the language of the country. */
+    val localName: String = name,
+    /** The number that reaches the emergency services of the country. */
+    val emergencyNumber: String
+)
+
 /**
  * How a crisis resource can be reached.
  *
@@ -144,15 +211,24 @@ enum class CrisisContact {
 
 data class CrisisResource(
     val name: String,
-    val description: String,
-    /** The number or short code. Empty for [CrisisContact.INFO]. */
+    /** The name in the language of the country, when there is one. */
+    val localName: String? = null,
+    val description: String = "",
     val phone: String,
     val contact: CrisisContact = CrisisContact.CALL,
-    /**
-     * Extra instruction for text services, e.g. "Text HOME to 741741".
-     * The text is pre-filled in the message, so the user only has to send it.
-     */
-    val instruction: String? = null,
-    /** The body that is pre-filled for a [CrisisContact.TEXT] service. */
-    val messageBody: String? = null
+    /** When the line is open. */
+    val hours: String = "",
+    /** The languages the line answers in, as language codes. */
+    val languages: List<String> = emptyList(),
+    val free: Boolean = false,
+    val anonymous: Boolean = false,
+    val website: String = "",
+    /** The day the number was last checked. */
+    val verifiedAt: String = "",
+    /** True for the emergency number of the country. */
+    val isEmergency: Boolean = false,
+    /** The body of a text message, when the line is a text service. */
+    val messageBody: String? = null,
+    /** The instruction for a text service. */
+    val instruction: String? = null
 )

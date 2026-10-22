@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.schrammel.brilliantlist.core_data.database.DatabaseKeyManager
 import dev.schrammel.brilliantlist.core_data.repository.SettingsRepository
 import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +48,8 @@ enum class AppLockState {
 @HiltViewModel
 class AppLockViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    settingsRepository: SettingsRepository
+    settingsRepository: SettingsRepository,
+    private val keyManager: DatabaseKeyManager
 ) : ViewModel() {
 
     /** True when the user wants the lock. */
@@ -124,7 +126,16 @@ class AppLockViewModel @Inject constructor(
 
     /** The user proved who they are. */
     fun unlockSucceeded() {
-        _state.value = AppLockState.UNLOCKED
+        viewModelScope.launch {
+            try {
+                // Unwrapping the passphrase triggers the biometric or device
+                // credential prompt. The database cannot be opened without it.
+                keyManager.getOrCreatePassphrase()
+                _state.value = AppLockState.UNLOCKED
+            } catch (e: Exception) {
+                _state.value = AppLockState.LOCKED
+            }
+        }
     }
 
     /** The journal has to be locked again. */

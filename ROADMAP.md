@@ -337,14 +337,14 @@ hours, the languages and the date the number was last checked.
 
 **Done when:**
 
-- A link can be added, is stored encrypted, and opens in the browser when
+- [x] A link can be added, is stored encrypted, and opens in the browser when
   it is tapped.
-- Whatever was on the clipboard - a screenshot, a link or a text - can be
+- [x] Whatever was on the clipboard - a screenshot, a link or a text - can be
   added with one tap.
-- The crisis page covers 24 countries with verified numbers, shows the
+- [x] The crisis page covers 24 countries with verified numbers, shows the
   name in the language of the country, the hours, and the date the
   number was last checked.
-- The interface speaks more than one language.
+- [x] The interface speaks more than one language.
 
 ## The three things, and what they mean
 
@@ -518,3 +518,19 @@ signature.
 4. **The links: open them in the browser?** The app has no internet
    permission, so it cannot show what the page says. The alternative is to
    store the link and never open it, which seems pointless.
+
+---
+
+## Status of v0.3.0 (implemented)
+
+All phases of v0.3.0 are implemented:
+
+- **Security and privacy:** The Keystore master key is bound to the user with a
+  biometric/device-credential key. HEIC/HEIF EXIF stripping is implemented with
+  a safe, minimal parser.
+- **Capture:** The LINK type, clipboard paste action, and toolbar reorganisation
+  are in place. The mapper handles unknown types gracefully.
+- **Crisis page:** Sweden (SE) is in the catalog with verified helplines and the
+  emergency number 112. The region picker shows local names.
+- **Localisation:** Swedish translations are complete across all user-facing
+  modules.

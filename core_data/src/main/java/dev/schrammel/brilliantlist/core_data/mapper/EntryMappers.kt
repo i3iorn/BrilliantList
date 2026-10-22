@@ -6,7 +6,16 @@ import dev.schrammel.brilliantlist.core_model.EntryType
 
 fun EntryEntity.toDomain(): Entry = Entry(
     id = id,
-    type = EntryType.valueOf(type),
+    type = when (type) {
+        "TEXT" -> EntryType.TEXT
+        "IMAGE" -> EntryType.IMAGE
+        "AUDIO" -> EntryType.AUDIO
+        "LINK" -> EntryType.LINK
+        // A type that a newer version wrote. An older build must not crash
+        // on it, so it falls back to a plain text entry. The database keeps
+        // the original word; only the in-memory model is downgraded.
+        else -> EntryType.TEXT
+    },
     textContent = textContent,
     mediaUri = mediaUri,
     createdAt = createdAt,

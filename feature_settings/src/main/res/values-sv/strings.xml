@@ -1,0 +1,82 @@
+<resources>
+    <string name="settings_section_journal">Journal</string>
+    <string name="settings_section_widget">Hemskärmswidget</string>
+    <string name="settings_section_privacy">Integritet</string>
+    <string name="settings_section_support">Stöd</string>
+    <string name="settings_section_about">Om</string>
+    <string name="settings_region">Krisregion</string>
+    <string name="settings_region_unknown">Välj en region</string>
+    <string name="settings_widget_interval">Uppdateringsintervall för widgeten</string>
+    <string name="settings_minutes">%1$d min</string>
+    <string name="settings_hours">%1$d h</string>
+    <string name="settings_days">%1$d d</string>
+    <string name="settings_rotation_mode">Rotationsläge</string>
+    <string name="settings_rotation_random">Slumpmässig</string>
+    <string name="settings_rotation_sequential">Sekventiell</string>
+    <string name="settings_widget_auto_update">Automatisk uppdatering av widgeten</string>
+    <string name="settings_entry_order">Ordning på inlägg</string>
+    <string name="settings_group_by_day">Gruppera inlägg efter dag</string>
+    <string name="settings_group_by_day_summary">Listan visar dagarna som rubriker.</string>
+    <string name="settings_order_manual">Manuell</string>
+    <string name="settings_order_newest">Nyast först</string>
+    <string name="settings_widget_show_content">Visa inläggets text på widgeten</string>
+    <!-- The app lock. -->
+    <string name="settings_app_lock">Lås appen</string>
+    <string name="settings_app_lock_summary">Be om skärmlåset innan journalen öppnas.</string>
+    <string name="settings_app_lock_delay">Fråga igen efter</string>
+    <string name="settings_lock_delay_30s">30 s</string>
+    <string name="settings_lock_delay_1m">1 min</string>
+    <string name="settings_lock_delay_5m">5 min</string>
+    <string name="settings_lock_delay_closed">Aldrig</string>
+    <string name="settings_app_lock_unavailable">Den här enheten har inget skärmlås. Ställ in ett i systeminställningarna för att använda applåset.</string>
+    <!-- The backup. -->
+    <string name="settings_export">Exportera inlägg</string>
+    <string name="settings_export_summary">Spara en krypterad kopia av journalen till en fil.</string>
+    <string name="settings_import">Importera inlägg</string>
+    <string name="settings_import_summary">Återställ en krypterad export.</string>
+    <string name="settings_action">Utför</string>
+    <string name="settings_export_passphrase_title">Skydda exporten</string>
+    <string name="settings_import_passphrase_title">Öppna exporten</string>
+    <string name="settings_export_passphrase_text">Filen är krypterad med den här lösenfrasen. Du behöver den igen för att importera filen – den sparas ingenstans.</string>
+    <string name="settings_passphrase_label">Lösenfras</string>
+    <string name="settings_passphrase_repeat">Upprepa lösenfrasen</string>
+    <string name="settings_passphrase_mismatch">De två lösenfraserna är inte identiska</string>
+    <string name="settings_passphrase_strength">Styrka: %1$s</string>
+    <string name="settings_passphrase_weak">svag</string>
+    <string name="settings_passphrase_fair">godkänd</string>
+    <string name="settings_passphrase_strong">stark</string>
+    <string name="settings_passphrase_too_short">Lösenfrasen behöver minst 8 tecken.</string>
+    <string name="settings_export_done">%1$d inlägg skrivna</string>
+    <string name="settings_export_failed">Exporten kunde inte skrivas</string>
+    <string name="settings_import_done">%1$d inlägg importerade</string>
+    <string name="settings_import_failed">Filen kunde inte läsas. Är lösenfrasen korrekt?</string>
+    <!-- The wipe. -->
+    <string name="settings_erase">Radera allt</string>
+    <string name="settings_erase_summary">Radera alla inlägg, foton och inspelningar och ersätt krypteringsnyckeln.</string>
+    <string name="settings_erase_action">Radera</string>
+    <string name="settings_erase_confirm_title">Radera allt?</string>
+    <string name="settings_erase_confirm_text">Alla inlägg, foton och inspelningar raderas och krypteringsnyckeln ersätts. Detta kan inte ångras.</string>
+    <string name="settings_erase_confirm_action">Radera allt</string>
+    <string name="settings_erase_done">Allt raderades</string>
+    <!-- What the app stores. -->
+    <string name="settings_stored_text">Dina inlägg, foton och inspelningar är krypterade med en nyckel som aldrig lämnar den här enheten. Inget skickas någonstans.</string>
+    <string name="settings_stored_photos">Ett foto i HEIC behåller platsen där det togs. Foton du lägger till via väljaren gör det inte.</string>
+    <string name="settings_stored_stats">%1$d inlägg · %2$s på den här enheten</string>
+    <string name="settings_stored_stats_unknown">Läser journalens storlek…</string>
+    <!-- About. -->
+    <string name="settings_about_version">Version</string>
+    <string name="settings_about_unknown">okänd</string>
+    <string name="settings_about_licence">Licens</string>
+    <string name="settings_about_licence_value">Apache License 2.0</string>
+    <string name="settings_about_source">Källkod</string>
+    <string name="settings_about_source_value">github.com/i3iorn/BrilliantList</string>
+    <!-- The fingerprint of the release key. It has to match the key of the
+         repository (see scripts/create_release_key.py). -->
+    <string name="settings_about_key">Signeringsnyckel (SHA-256)</string>
+    <string name="settings_about_key_value">ba29f3639ed9f7ba5408babe422f16f2fd8ae0f0cf960a444730520070536f00</string>
+    <string name="settings_about_inspiration">BrilliantList är inspirerad av Every Brilliant Thing, pjäsen av Duncan Macmillan. Den här appen är oberoende och har ingen koppling till pjäsen eller dess skapare.</string>
+    <string name="settings_about_inspiration_link">everybrilliantthing.com</string>
+    <string name="settings_about_inspiration_url">Läs mer om pjäsen</string>
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Avbryt</string>
+</resources>

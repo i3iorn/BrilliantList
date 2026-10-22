@@ -44,6 +44,7 @@ dependencies {
     kspAndroidTest("androidx.room:room-compiler:2.8.5")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation(libs.datastore.preferences)
+    implementation(libs.androidx.biometric)
     // sqlcipher-android is the current artifact of SQLCipher for Android.
     // 4.6.0+ ships native libraries that are 16 KB page size aligned, which
     // Android 15+ devices require (see scripts/verify_privacy_invariants.py).

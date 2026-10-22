@@ -145,4 +145,5 @@ private fun EntryType.labelRes(): Int = when (this) {
     EntryType.TEXT -> R.string.entry_type_text
     EntryType.IMAGE -> R.string.entry_type_image
     EntryType.AUDIO -> R.string.entry_type_audio
+    EntryType.LINK -> R.string.entry_type_link
 }

@@ -1,0 +1,19 @@
+<resources>
+    <string name="entry_favorite">Lägg till i favoriter</string>
+    <string name="entry_unfavorite">Ta bort från favoriter</string>
+    <string name="entry_delete">Radera inlägg</string>
+    <!-- The delete button of an entry that is already in the trash. -->
+    <string name="entry_delete_forever">Radera för alltid</string>
+    <string name="entry_restore">Återställ</string>
+    <string name="entry_copy">Kopiera text</string>
+    <string name="entry_type_text">Tom anteckning</string>
+    <string name="entry_type_image">Bildinlägg</string>
+    <string name="entry_type_audio">Ljudinlägg</string>
+    <string name="entry_type_link">Länk</string>
+    <string name="entry_day_today">Idag</string>
+    <string name="entry_day_yesterday">Igår</string>
+    <string name="entry_time_today">Idag kl. %1$s</string>
+    <string name="entry_time_yesterday">Igår kl. %1$s</string>
+    <!-- Announced when the card is opened. -->
+    <string name="entry_open">Öppna inlägg</string>
+</resources>

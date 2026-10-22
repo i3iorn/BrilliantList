@@ -2,6 +2,7 @@ package dev.schrammel.brilliantlist.core_data.database
 
 import android.app.KeyguardManager
 import android.content.Context
+import androidx.biometric.BiometricManager
 import android.util.Base64
 import dev.schrammel.brilliantlist.core_encryption.CryptoManager
 import dev.schrammel.brilliantlist.core_encryption.CryptoUnavailableException
@@ -9,6 +10,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.security.SecureRandom
 import javax.crypto.SecretKey
+import javax.inject.Inject
 
 /**
  * Provides the SQLCipher passphrase. A random passphrase is generated once,
@@ -20,8 +22,17 @@ import javax.crypto.SecretKey
  * is stored next to it. When the key specification changes, the passphrase is
  * re-wrapped with a key of the new version (see [rotateKey]) so the database
  * stays readable.
+ *
+ * ## User authentication
+ *
+ * The "master key" (version 2) encrypts the media files. The passphrase of
+ * the database is wrapped by an "auth key" (version 3) that requires the user
+ * to authenticate with a biometric or the device credential. The database
+ * therefore cannot be opened before the user unlocks it. On devices without a
+ * screen lock the app falls back to the master key, so a fresh install is
+ * still usable.
  */
-class DatabaseKeyManager(private val context: Context) {
+class DatabaseKeyManager @Inject constructor(private val context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -45,13 +56,53 @@ class DatabaseKeyManager(private val context: Context) {
         get() = prefs.getInt(KEY_VERSION, LEGACY_VERSION)
 
     /**
-     * The alias of the key that currently protects the passphrase.
+     * The alias of the key that currently protects the media files.
      *
      * The alias is stored, so the key can be replaced without losing the
      * data it protects (see [rotateKeyToNewAlias]).
      */
     fun activeAlias(): String =
         prefs.getString(KEY_ALIAS, null) ?: CryptoManager.aliasFor(LEGACY_VERSION)
+
+    /**
+     * The alias of the key that protects the database passphrase.
+     *
+     * When the device can authenticate, this is a key that requires user
+     * authentication. Otherwise it falls back to the master key, so a device
+     * without a screen lock still works.
+     */
+    fun activeAuthAlias(): String {
+        if (canAuthenticate(context)) {
+            return prefs.getString(AUTH_KEY_ALIAS, null)
+                ?: (CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + "_auth")
+        }
+        return activeAlias()
+    }
+
+    /**
+     * The key that protects the database passphrase.
+     *
+     * This key requires user authentication when the device supports it.
+     */
+    fun activeAuthKey(): SecretKey {
+        val alias = activeAuthAlias()
+        return CryptoManager.getKey(alias)
+            ?: if (canAuthenticate(context)) {
+                CryptoManager.createAuthKey(alias)
+            } else {
+                CryptoManager.createKey(alias)
+            }
+    }
+
+    /**
+     * True when the device can ask for a biometric or the device credential.
+     */
+    private fun canAuthenticate(context: Context): Boolean {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        return BiometricManager.from(context).canAuthenticate(authenticators) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+    }
 
     /**
      * Creates the key and the passphrase in the background.
@@ -61,7 +112,9 @@ class DatabaseKeyManager(private val context: Context) {
      * passphrase is then created when it is really needed.
      */
     fun warmUp() {
-        runCatching { getOrCreatePassphrase() }
+        // Only warm up the master key (for media). The passphrase needs the
+        // auth key, which would prompt the user before they unlocked the app.
+        runCatching { CryptoManager.createKey(activeAlias()) }
     }
 
     /**
@@ -101,7 +154,7 @@ class DatabaseKeyManager(private val context: Context) {
         if (storedVersion != CryptoManager.KEY_VERSION) {
             return rotateKey(stored)
         }
-        val key = CryptoManager.getKey(activeAlias())
+        val key = CryptoManager.getKey(activeAuthAlias())
             ?: throw CryptoUnavailableException("The encryption key is no longer available")
         val out = ByteArrayOutputStream()
         CryptoManager.decryptWithKey(
@@ -124,7 +177,10 @@ class DatabaseKeyManager(private val context: Context) {
         if (keyguard?.isDeviceLocked == true) return false
         // A key that does not exist yet counts as usable: there is nothing to
         // unlock, it is created together with the database.
-        return CryptoManager.isKeyUsable(activeAlias())
+        if (prefs.getString(PASSPHRASE_KEY, null) == null) return true
+        // The auth key requires user authentication. The key is unusable
+        // while the device is locked.
+        return CryptoManager.isKeyUsable(activeAuthAlias())
     }
 
     /**
@@ -136,7 +192,7 @@ class DatabaseKeyManager(private val context: Context) {
      */
     fun isKeyLost(): Boolean {
         if (prefs.getString(PASSPHRASE_KEY, null) == null) return false
-        return CryptoManager.getKey(activeAlias()) == null
+        return CryptoManager.getKey(activeAuthAlias()) == null
     }
 
     /**
@@ -150,9 +206,11 @@ class DatabaseKeyManager(private val context: Context) {
             .remove(PASSPHRASE_KEY)
             .remove(KEY_VERSION)
             .remove(KEY_ALIAS)
+            .remove(AUTH_KEY_ALIAS)
             .apply()
         cachedPassphrase = null
         CryptoManager.deleteKey(activeAlias())
+        CryptoManager.deleteKey(activeAuthAlias())
         // A key of a previous version can still be around when the rotation
         // was interrupted; it protects nothing anymore, so it goes too.
         for (version in 1..CryptoManager.KEY_VERSION) {
@@ -170,7 +228,7 @@ class DatabaseKeyManager(private val context: Context) {
      */
     fun rotateKeyToNewAlias() {
         val stored = prefs.getString(PASSPHRASE_KEY, null) ?: return
-        val oldAlias = activeAlias()
+        val oldAlias = activeAuthAlias()
         val oldKey = CryptoManager.getKey(oldAlias) ?: return
 
         val plaintext = ByteArrayOutputStream()
@@ -182,13 +240,17 @@ class DatabaseKeyManager(private val context: Context) {
 
         val newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + "_" +
             System.currentTimeMillis()
-        val newKey = CryptoManager.createKey(newAlias)
+        val newKey = if (canAuthenticate(context)) {
+            CryptoManager.createAuthKey(newAlias)
+        } else {
+            CryptoManager.createKey(newAlias)
+        }
         val out = ByteArrayOutputStream()
         CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(plaintext.toByteArray()), out)
 
         prefs.edit()
             .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
-            .putString(KEY_ALIAS, newAlias)
+            .putString(AUTH_KEY_ALIAS, newAlias)
             .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
             .apply()
 
@@ -198,8 +260,8 @@ class DatabaseKeyManager(private val context: Context) {
     /** Creates a key of the current version and a fresh passphrase. */
     private fun createFreshPassphrase(): ByteArray {
         val passphrase = ByteArray(PASSPHRASE_SIZE).also { SecureRandom().nextBytes(it) }
-        val alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-        val key = CryptoManager.createKey(alias)
+        val alias = activeAuthAlias()
+        val key = activeAuthKey()
         storePassphrase(passphrase, key, alias)
         return passphrase
     }
@@ -211,7 +273,7 @@ class DatabaseKeyManager(private val context: Context) {
      * interrupted rotation can never lose the database.
      */
     private fun rotateKey(stored: String): ByteArray {
-        val oldAlias = activeAlias()
+        val oldAlias = activeAuthAlias()
         val oldKey = CryptoManager.getKey(oldAlias)
             ?: throw CryptoUnavailableException("The encryption key is no longer available")
 
@@ -223,14 +285,14 @@ class DatabaseKeyManager(private val context: Context) {
         )
         val passphrase = plaintext.toByteArray()
 
-        val newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-        val newKey = CryptoManager.createKey(newAlias)
+        val newAlias = activeAuthAlias()
+        val newKey = activeAuthKey()
         val out = ByteArrayOutputStream()
         CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(passphrase), out)
 
         prefs.edit()
             .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
-            .putString(KEY_ALIAS, newAlias)
+            .putString(AUTH_KEY_ALIAS, newAlias)
             .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
             .apply()
 
@@ -243,7 +305,7 @@ class DatabaseKeyManager(private val context: Context) {
         CryptoManager.encryptWithKey(key, ByteArrayInputStream(passphrase), out)
         prefs.edit()
             .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
-            .putString(KEY_ALIAS, alias)
+            .putString(AUTH_KEY_ALIAS, alias)
             .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
             .apply()
     }
@@ -253,6 +315,7 @@ class DatabaseKeyManager(private val context: Context) {
         const val PASSPHRASE_KEY = "sqlcipher_passphrase"
         const val KEY_VERSION = "key_version"
         const val KEY_ALIAS = "key_alias"
+        const val AUTH_KEY_ALIAS = "auth_key_alias"
         const val PASSPHRASE_SIZE = 32
 
         /** The version of the key that was used before the keys were versioned. */

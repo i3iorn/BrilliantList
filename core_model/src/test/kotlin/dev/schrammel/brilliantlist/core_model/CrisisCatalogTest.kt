@@ -15,19 +15,19 @@ class CrisisCatalogTest {
 
     @Test
     fun normalizesCanonicalCodes() {
-        assertEquals(CrisisRegion.US, CrisisCatalog.normalize("US"))
-        assertEquals(CrisisRegion.GB, CrisisCatalog.normalize("GB"))
-        assertEquals(CrisisRegion.CA, CrisisCatalog.normalize("CA"))
-        assertEquals(CrisisRegion.AU, CrisisCatalog.normalize("AU"))
-        assertEquals(CrisisRegion.DE, CrisisCatalog.normalize("DE"))
+        assertEquals("US", CrisisCatalog.normalize("US"))
+        assertEquals("GB", CrisisCatalog.normalize("GB"))
+        assertEquals("CA", CrisisCatalog.normalize("CA"))
+        assertEquals("AU", CrisisCatalog.normalize("AU"))
+        assertEquals("DE", CrisisCatalog.normalize("DE"))
     }
 
     @Test
     fun normalizesCommonAliasesAndCasing() {
-        assertEquals(CrisisRegion.US, CrisisCatalog.normalize("usa"))
-        assertEquals(CrisisRegion.US, CrisisCatalog.normalize("United States"))
-        assertEquals(CrisisRegion.GB, CrisisCatalog.normalize("UK"))
-        assertEquals(CrisisRegion.GB, CrisisCatalog.normalize(" england "))
+        assertEquals("US", CrisisCatalog.normalize("usa"))
+        assertEquals("US", CrisisCatalog.normalize("United States"))
+        assertEquals("GB", CrisisCatalog.normalize("UK"))
+        assertEquals("GB", CrisisCatalog.normalize(" england "))
     }
 
     @Test
@@ -39,16 +39,16 @@ class CrisisCatalogTest {
 
     @Test
     fun everySupportedRegionHasItsOwnCatalog() {
-        for (region in CrisisRegion.entries) {
-            val resources = CrisisCatalog.resourcesFor(region)
-            assertTrue("${region.code} has no resources", resources.isNotEmpty())
+        for (country in CrisisCatalog.countries) {
+            val resources = CrisisCatalog.resourcesFor(country.code)
+            assertTrue("${country.code} has no resources", resources.isNotEmpty())
             assertNotEquals(
-                "${region.code} falls back to the generic catalog",
+                "${country.code} falls back to the generic catalog",
                 CrisisCatalog.fallbackResources,
                 resources
             )
             assertTrue(
-                "${region.code} has a resource without a phone number",
+                "${country.code} has a resource without a phone number",
                 resources.all { it.phone.isNotBlank() }
             )
         }
@@ -62,7 +62,7 @@ class CrisisCatalogTest {
     @Test
     fun rawLookupMatchesNormalizedLookup() {
         assertEquals(
-            CrisisCatalog.resourcesFor(CrisisRegion.US),
+            CrisisCatalog.resourcesFor("US"),
             CrisisCatalog.resourcesFor("United States")
         )
     }
@@ -72,8 +72,8 @@ class CrisisCatalogTest {
         // A text service cannot be dialled, so it has to carry the TEXT type
         // and a message body. Otherwise the crisis screen would offer a call
         // that can never work.
-        val textLines = CrisisRegion.entries
-            .flatMap { CrisisCatalog.resourcesFor(it) }
+        val textLines = CrisisCatalog.countries
+            .flatMap { CrisisCatalog.resourcesFor(it.code) }
             .filter { it.contact == CrisisContact.TEXT }
 
         assertTrue("no text service in the catalog", textLines.isNotEmpty())
@@ -91,8 +91,8 @@ class CrisisCatalogTest {
 
     @Test
     fun callablesHaveANumber() {
-        CrisisRegion.entries
-            .flatMap { CrisisCatalog.resourcesFor(it) }
+        CrisisCatalog.countries
+            .flatMap { CrisisCatalog.resourcesFor(it.code) }
             .filter { it.contact == CrisisContact.CALL }
             .forEach { resource ->
                 assertTrue(
@@ -112,5 +112,32 @@ class CrisisCatalogTest {
                     resource.phone.isBlank()
                 )
             }
+    }
+
+    @Test
+    fun swedenHasTheExpectedHelplines() {
+        val resources = CrisisCatalog.resourcesFor("SE")
+        assertTrue("SE has no resources", resources.isNotEmpty())
+
+        // The emergency number is the first resource and the one that must
+        // always be right.
+        val emergency = resources.firstOrNull { it.isEmergency }
+        assertTrue("SE has no emergency resource", emergency != null)
+        assertEquals("112", emergency?.phone)
+
+        // The Swedish helplines are plausible, well-known services.
+        val expected = mapOf(
+            "Mind Självmordslinjen" to "90101",
+            "BRIS" to "116 111",
+            "Jourhavande medmänniska" to "08-702 16 80",
+            "1177 Vårdguiden" to "1177"
+        )
+        expected.forEach { (name, phone) ->
+            val resource = resources.firstOrNull { it.name == name }
+            assertTrue("SE is missing $name", resource != null)
+            assertEquals("$name has the wrong number", phone, resource?.phone)
+            assertEquals("$name should be callable", CrisisContact.CALL, resource?.contact)
+            assertTrue("$name has no verified date", !resource?.verifiedAt.isNullOrBlank())
+        }
     }
 }

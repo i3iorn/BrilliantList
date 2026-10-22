@@ -1,0 +1,5 @@
+<resources>
+    <string name="widget_empty">Lägg till din första briljanta grej</string>
+    <string name="widget_hidden">Öppna Brilliant List för att se ditt inlägg</string>
+    <string name="widget_locked">Lås upp enheten för att se ditt inlägg</string>
+</resources>

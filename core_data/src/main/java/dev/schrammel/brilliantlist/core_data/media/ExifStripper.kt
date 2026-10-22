@@ -15,9 +15,12 @@ import java.io.SequenceInputStream
  * Only the container level metadata is removed, the pixels are untouched, so
  * there is no quality loss and no full decode of the bitmap.
  *
- * JPEG (APP1/Exif) and PNG (eXIf chunk) are handled. Every other format
- * (HEIC, WebP, ...) is passed through unchanged - the photo is more valuable
- * than the metadata.
+ * JPEG (APP1/Exif), PNG (eXIf chunk) and HEIC/HEIF (top-level Exif box) are
+ * handled. HEIC/HEIF is the format iPhones use by default, so a photo taken
+ * on an iPhone must not keep its location. The ISO Base Media File Format is
+ * parsed at the top level only: the Exif box is dropped, everything else is
+ * copied byte for byte. A 64-bit box size (size == 1) is not expected in a
+ * photo and is passed through unchanged rather than risking corruption.
  *
  * The filter pulls: the bytes are copied straight from the source into the
  * buffer of the reader, nothing is buffered in between. A photo of any size
@@ -43,18 +46,73 @@ object ExifStripper {
             // already contain the start of the Exif segment.
             isJpeg(header) -> JpegExifFilter(ByteArray(0), SequenceInputStream(ByteArrayInputStream(header), source))
             isPng(header) -> PngExifFilter(header, source)
-            else -> SequenceInputStream(ByteArrayInputStream(header), source)
+            else -> {
+                // Check for HEIC/HEIF: the ftyp box is at the start and the
+                // major brand follows the size and type.
+                val ftypSize = readInt(header, 0)
+                val type = String(header, 4, 4)
+                if (type == "ftyp" && ftypSize >= HEIC_HEADER_SIZE) {
+                    val brandBytes = ByteArray(4)
+                    var brandRead = 0
+                    while (brandRead < 4) {
+                        val r = source.read(brandBytes, brandRead, 4 - brandRead)
+                        if (r == -1) break
+                        brandRead += r
+                    }
+                    if (brandRead == 4) {
+                        val brand = String(brandBytes)
+                        if (brand == "heic" || brand == "heix" || brand == "hevc" ||
+                            brand == "hevx" || brand == "mif1" || brand == "msf1"
+                        ) {
+                            // The header is the 12 bytes we have read so far.
+                            return HeicExifFilter(header + brandBytes, ftypSize, source)
+                        }
+                        // Not HEIC: the brand bytes are put back into the stream.
+                        return SequenceInputStream(
+                            ByteArrayInputStream(header + brandBytes),
+                            source
+                        )
+                    }
+                    // The brand could not be read: pass the bytes through.
+                    return SequenceInputStream(
+                        ByteArrayInputStream(header + brandBytes.copyOf(brandRead)),
+                        source
+                    )
+                }
+                // Not HEIC: pass it through unchanged.
+                SequenceInputStream(ByteArrayInputStream(header), source)
+            }
         }
     }
 
     private fun isJpeg(header: ByteArray): Boolean =
         header[0] == 0xFF.toByte() && header[1] == 0xD8.toByte()
 
+    /** True for the 8-byte PNG signature. */
     private fun isPng(header: ByteArray): Boolean =
-        header[0] == 0x89.toByte() && header[1] == 'P'.code.toByte() &&
-            header[2] == 'N'.code.toByte() && header[3] == 'G'.code.toByte()
+        header.size >= 8 &&
+            header[0] == 0x89.toByte() &&
+            header[1] == 0x50.toByte() &&
+            header[2] == 0x4E.toByte() &&
+            header[3] == 0x47.toByte() &&
+            header[4] == 0x0D.toByte() &&
+            header[5] == 0x0A.toByte() &&
+            header[6] == 0x1A.toByte() &&
+            header[7] == 0x0A.toByte()
 
+    /** Reads a 32-bit big-endian integer from [header] at [offset]. */
+    private fun readInt(header: ByteArray, offset: Int): Long {
+        return ((header[offset].toLong() and 0xFF) shl 24) or
+            ((header[offset + 1].toLong() and 0xFF) shl 16) or
+            ((header[offset + 2].toLong() and 0xFF) shl 8) or
+            (header[offset + 3].toLong() and 0xFF)
+    }
+
+    /** The size of the JPEG/PNG header that is read first. */
     private const val HEADER_SIZE = 8
+
+    /** The size of the HEIC/HEIF header: size, type and major brand. */
+    private const val HEIC_HEADER_SIZE = 12
 }
 
 /**
@@ -334,6 +392,75 @@ private class PngExifFilter(
         return true
     }
 }
+
+/**
+ * Filters the Exif box out of a HEIC/HEIF file.
+ *
+ * A HEIC/HEIF file is a sequence of boxes. The Exif data is in a top-level
+ * box named "Exif". The box is dropped; every other box is copied byte for
+ * byte. The boxes are read with their 32-bit size, which is what cameras
+ * write. A 64-bit size (size == 1) is passed through unchanged: the parser
+ * does not expect it in a photo and must not corrupt the file.
+ */
+private class HeicExifFilter(
+    header: ByteArray,
+    private val ftypSize: Long,
+    source: InputStream
+) : MetadataFilter(header, source) {
+
+    /** The bytes of the ftyp box that still have to be copied. */
+    private var ftypRemaining = ftypSize - HEIC_HEADER_SIZE
+
+    override fun parseNextSegment(): Boolean {
+        // The rest of the ftyp box is copied as it is.
+        if (ftypRemaining > 0) {
+            setPayloadRemaining(ftypRemaining)
+            ftypRemaining = 0
+            return true
+        }
+
+        // The next box header: 4 bytes of size, 4 bytes of type.
+        val boxHeader = readSource(8) ?: return false
+        val size = readInt(boxHeader, 0)
+        val type = String(boxHeader, 4, 4)
+
+        if (size == 0L) {
+            // The box extends to the end of the file.
+            setPending(boxHeader)
+            setPayloadRemaining(Long.MAX_VALUE)
+            return true
+        }
+
+        if (size < 8) {
+            // Invalid box size: copy the rest to avoid corruption.
+            setPending(boxHeader)
+            setPayloadRemaining(Long.MAX_VALUE)
+            return true
+        }
+
+        if (type == "Exif") {
+            // The metadata box: its payload is dropped.
+            skipSource((size - 8).toInt())
+            return true
+        }
+
+        // Everything else is copied as it is.
+        setPending(boxHeader)
+        setPayloadRemaining(size - 8)
+        return true
+    }
+}
+
+/** Reads a 32-bit big-endian integer from [bytes] at [offset]. */
+private fun readInt(bytes: ByteArray, offset: Int): Long {
+    return ((bytes[offset].toLong() and 0xFF) shl 24) or
+        ((bytes[offset + 1].toLong() and 0xFF) shl 16) or
+        ((bytes[offset + 2].toLong() and 0xFF) shl 8) or
+        (bytes[offset + 3].toLong() and 0xFF)
+}
+
+/** The size of the HEIC/HEIF header: size, type and major brand. */
+private const val HEIC_HEADER_SIZE = 12
 
 /** True when this array starts with [prefix]. */
 private fun ByteArray.startsWithExif(prefix: ByteArray): Boolean {

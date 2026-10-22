@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Brilliant List</string>
+    <string name="nav_entries">Inlägg</string>
+    <string name="nav_crisis">Kris</string>
+    <string name="nav_settings">Inställningar</string>
+    <string name="nav_support">Stöd</string>
+    <string name="app_locked_title">Dina inlägg är låsta</string>
+    <string name="app_locked_message">BrilliantList håller dina inlägg krypterade, och de kan bara läsas när enheten är upplåst. Lås upp enheten för att fortsätta.</string>
+    <string name="app_locked_retry">Försök igen</string>
+    <!-- The app lock. -->
+    <string name="app_lock_title">BrilliantList är låst</string>
+    <string name="app_lock_message">Din journal förblir stängd tills du låser upp den.</string>
+    <string name="app_lock_unlock">Lås upp</string>
+    <string name="app_key_lost_title">Krypteringsnyckeln är borta</string>
+    <string name="app_key_lost_message">Nyckeln som skyddar dina inlägg finns inte längre på den här enheten, så de kan inte öppnas. Du kan börja om med en tom journal.</string>
+    <string name="app_key_lost_action">Börja om</string>
+    <string name="action_cancel">Avbryt</string>
+    <string name="app_key_lost_confirm">Att börja om raderar journalen. Inläggen kan inte återställas, eftersom nyckeln som skyddar dem är borta.</string>
+    <string name="app_lock_prompt_title">Lås upp BrilliantList</string>
+    <string name="app_lock_prompt_subtitle">Din journal är krypterad och förblir stängd.</string>
+</resources>

@@ -3,6 +3,48 @@
 The versions of the app. The version in `version.properties` is the one that
 is built, and the tag of a release has to match it.
 
+## 0.3.0 — not released yet
+
+### Security and privacy
+- The Keystore master key is now bound to the user: a second key that requires
+  biometric or device credential authentication wraps the master key. The
+  database cannot be opened before the user unlocks it. The key is kept in
+  memory for the session.
+- HEIC/HEIF photos are stripped of their EXIF metadata on ingestion, just like
+  JPEG and PNG. The safe, minimal parser only drops the Exif box and never
+  corrupts the image.
+
+### Capture: links and clipboard
+- A new LINK entry type: add a web address with a small dialog and inline
+  validation. Only http and https are accepted. The card shows the address and
+  opens the browser when tapped.
+- The toolbar has been reorganised: the capture actions (photo, microphone,
+  link, paste) stay in the toolbar, while the view actions (favourites, search,
+  trash) move to the top bar.
+- Paste from the clipboard: a picture becomes a photo entry (with metadata
+  removed), an address becomes a link entry, and anything else becomes a text
+  entry. The clipboard is read only when the button is tapped. An empty
+  clipboard shows a message.
+- The entry type mapper is forgiving: an unknown type from an older or newer
+  build is shown as a text entry instead of crashing the app.
+
+### The crisis page knows more of the world
+- Sweden (SE) has been added to the crisis catalog with verified helplines
+  (Mind Självmordslinjen 90101, BRIS 116 111, Jourhavande medmänniska
+  08-702 16 80, 1177 Vårdguiden 1177). The emergency number 112 is included in
+  the hand-written table. The region picker shows "Sverige" with its flag.
+- The helpline records carry the name in the local language (`localName`), the
+  opening hours, the languages the line answers in, and the date the number was
+  last checked.
+- The crisis page now handles Swedish and English. The Swedish copy is careful
+  and human-sounding.
+
+### More languages
+- The interface is now translated into Swedish. All user-facing strings,
+  including accessibility content descriptions, are available in
+  `values-sv/strings.xml` for the `app`, `feature_entry`, `feature_widget`,
+  `feature_crisis`, `feature_settings`, and `core_ui` modules.
+
 ## 0.2.0 — not released yet
 
 ### The update path

@@ -52,7 +52,8 @@ import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import dev.schrammel.brilliantlist.core_model.CrisisCatalog
-import dev.schrammel.brilliantlist.core_model.CrisisRegion
+import dev.schrammel.brilliantlist.core_model.CrisisCatalog
+import dev.schrammel.brilliantlist.core_model.CrisisCountry
 import dev.schrammel.brilliantlist.core_model.JournalStats
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.SortMode
@@ -501,8 +502,8 @@ private fun ActionRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RegionPicker(
-    region: CrisisRegion?,
-    onRegionChange: (CrisisRegion) -> Unit
+    region: CrisisCountry?,
+    onRegionChange: (CrisisCountry) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -511,7 +512,7 @@ private fun RegionPicker(
         onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = region?.displayName ?: stringResource(R.string.settings_region_unknown),
+            value = region?.name ?: stringResource(R.string.settings_region_unknown),
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.settings_region)) },
@@ -526,9 +527,9 @@ private fun RegionPicker(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            CrisisRegion.entries.forEach { option ->
+            CrisisCatalog.countries.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.displayName) },
+                    text = { Text(option.name) },
                     onClick = {
                         onRegionChange(option)
                         expanded = false

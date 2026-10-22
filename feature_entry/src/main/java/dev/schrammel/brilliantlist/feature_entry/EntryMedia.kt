@@ -51,7 +51,7 @@ fun EntryMedia(entry: Entry, loader: MediaLoader, modifier: Modifier = Modifier)
     when (entry.type) {
         EntryType.IMAGE -> ImagePreview(entry, loader, modifier)
         EntryType.AUDIO -> AudioPlayer(entry, loader, modifier)
-        EntryType.TEXT -> Unit
+        EntryType.TEXT, EntryType.LINK -> Unit
     }
 }
 

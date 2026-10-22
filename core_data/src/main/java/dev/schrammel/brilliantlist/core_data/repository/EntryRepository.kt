@@ -83,6 +83,26 @@ class EntryRepository @Inject constructor(
     }
 
     /**
+     * Adds a link entry and returns the persisted model.
+     *
+     * The address is the text of the entry. Only http and https addresses
+     * reach this method; the validation happens in the UI layer.
+     */
+    suspend fun addLinkEntry(url: String): Entry {
+        val now = System.currentTimeMillis()
+        val entry = Entry(
+            id = UUID.randomUUID(),
+            type = EntryType.LINK,
+            textContent = url,
+            createdAt = now,
+            updatedAt = now,
+            position = dao.nextPosition()
+        )
+        dao.upsert(entry.toEntity())
+        return entry
+    }
+
+    /**
      * Persists an image entry. The source stream (usually a ContentResolver stream)
      * is encrypted directly without full in-memory buffering.
      *

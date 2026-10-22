@@ -7,6 +7,9 @@ import android.content.Context
 import android.os.Build
 import android.os.PersistableBundle
 import android.net.Uri
+import android.webkit.URLUtil
+import java.net.MalformedURLException
+import java.net.URL
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +21,7 @@ import dev.schrammel.brilliantlist.core_model.Entry
 import dev.schrammel.brilliantlist.core_model.EntryType
 import dev.schrammel.brilliantlist.core_model.Settings
 import dev.schrammel.brilliantlist.core_model.SortMode
+import dev.schrammel.brilliantlist.core_model.UrlValidator
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,7 +76,7 @@ class EntryViewModel @Inject constructor(
                 rotationMode = dev.schrammel.brilliantlist.core_model.RotationMode.RANDOM,
                 rotationIntervalMinutes = 30,
                 widgetAutoUpdate = true,
-                crisisRegion = dev.schrammel.brilliantlist.core_model.CrisisRegion.DEFAULT.code,
+                crisisRegion = dev.schrammel.brilliantlist.core_model.CrisisCatalog.DEFAULT_COUNTRY,
                 sortMode = SortMode.MANUAL,
                 widgetShowContent = false
             )
@@ -131,6 +135,52 @@ class EntryViewModel @Inject constructor(
     fun addEntry(text: String?) {
         viewModelScope.launch { repository.addTextEntry(text) }
     }
+
+    /**
+     * Reads the clipboard and adds an entry depending on its content.
+     *
+     * A picture becomes a photo entry, an address becomes a link entry and
+     * anything else becomes a text entry. The clipboard is only read when
+     * the user taps the paste action.
+     */
+    fun pasteFromClipboard() {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        val clip = clipboard.primaryClip
+        if (clip == null || clip.itemCount == 0) {
+            _events.tryEmit(EntryEvent.Message(context.getString(R.string.entry_clipboard_empty)))
+            return
+        }
+        val item = clip.getItemAt(0)
+        // 1. Picture
+        if (item.uri != null && context.contentResolver.getType(item.uri!!)?.startsWith("image/") == true) {
+            addImageEntry(item.uri!!)
+            return
+        }
+        // 2. Text (URL or plain text)
+        val text = item.text?.toString()?.trim()
+        if (!text.isNullOrEmpty()) {
+            if (isValidUrl(text)) {
+                addLinkEntry(text)
+            } else {
+                addEntry(text)
+            }
+            return
+        }
+        // 3. Empty or unsupported
+        _events.tryEmit(EntryEvent.Message(context.getString(R.string.entry_clipboard_empty)))
+    }
+
+    /**
+     * Adds a link entry. The address must already be validated as http/https.
+     */
+    fun addLinkEntry(url: String) {
+        viewModelScope.launch { repository.addLinkEntry(url) }
+    }
+
+    /**
+     * Validates a URL. Only http and https are accepted.
+     */
+    fun isValidUrl(url: String): Boolean = UrlValidator.isValid(url)
 
     /** Captures an image from a picker Uri; encrypts the ContentResolver stream directly. */
     fun addImageEntry(uri: Uri) {

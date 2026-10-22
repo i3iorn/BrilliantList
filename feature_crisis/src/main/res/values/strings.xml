@@ -1,7 +1,11 @@
 <resources>
     <string name="crisis_region">Region: %1$s</string>
-    <string name="crisis_region_unknown">not set</string>
     <string name="crisis_region_unrecognized">Your region is not recognized, so only generic emergency numbers are shown. Pick your region in Settings to see local hotlines.</string>
+    <!-- The action of a resource depends on its type: a text line cannot be
+         called and a helpline is not always a text line. -->
     <string name="crisis_action_call">Call %1$s</string>
     <string name="crisis_action_text">Text %1$s</string>
+    <string name="crisis_free">free</string>
+    <string name="crisis_anonymous">anonymous</string>
+    <string name="crisis_verified">Number checked on %1$s</string>
 </resources>

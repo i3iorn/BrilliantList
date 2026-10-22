@@ -18,16 +18,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -79,6 +80,7 @@ import kotlinx.coroutines.launch
  * descriptions instead of emoji, and the list can be reordered with
  * accessibility actions.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
     val entries by viewModel.entries.collectAsState()
@@ -96,6 +98,9 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
     var showTrash by remember { mutableStateOf(false) }
     var captureText by remember { mutableStateOf("") }
     var editingEntry by remember { mutableStateOf<Entry?>(null) }
+    var showLinkDialog by remember { mutableStateOf(false) }
+    var linkText by remember { mutableStateOf("") }
+    var linkError by remember { mutableStateOf<String?>(null) }
     val recorder = remember { AudioRecorder(context) }
     var pendingSink by remember { mutableStateOf<MediaSink?>(null) }
     var showEmptyTrashDialog by remember { mutableStateOf(false) }
@@ -200,6 +205,63 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.entry_top_bar_title)) },
+                actions = {
+                    // Favorites toggle
+                    IconToggleButton(
+                        checked = favoritesOnly,
+                        onCheckedChange = { viewModel.setFavoritesOnly(!favoritesOnly) }
+                    ) {
+                        Icon(
+                            imageVector = if (favoritesOnly) {
+                                Icons.Filled.Favorite
+                            } else {
+                                Icons.Filled.FavoriteBorder
+                            },
+                            contentDescription = stringResource(R.string.entry_favorites)
+                        )
+                    }
+                    // Search toggle
+                    IconToggleButton(
+                        checked = showSearch,
+                        onCheckedChange = {
+                            showSearch = !showSearch
+                            if (!showSearch) viewModel.setQuery("")
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = stringResource(R.string.entry_search)
+                        )
+                    }
+                    // Trash toggle / Back to entries
+                    if (showTrash) {
+                        IconButton(onClick = { showTrash = false }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.entry_show_entries)
+                            )
+                        }
+                    } else {
+                        IconToggleButton(
+                            checked = showTrash,
+                            onCheckedChange = {
+                                showTrash = true
+                                showSearch = false
+                                viewModel.setQuery("")
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.entry_show_trash)
+                            )
+                        }
+                    }
+                }
+            )
+        },
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
@@ -272,45 +334,34 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                 )
             }
 
-            EntryToolbar(
-                isRecording = recorder.isRecording,
-                recordingSeconds = recorder.elapsedSeconds,
-                favoritesOnly = favoritesOnly,
-                showSearch = showSearch,
-                showTrash = showTrash,
-                inTrash = showTrash,
-                onPickImage = {
-                    imagePicker.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                onToggleRecording = {
-                    if (recorder.isRecording) {
-                        stopRecording()
-                    } else if (
-                        ContextCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.RECORD_AUDIO
-                        ) == PackageManager.PERMISSION_GRANTED
-                    ) {
-                        startRecording()
-                    } else {
-                        audioPermission.launch(Manifest.permission.RECORD_AUDIO)
-                    }
-                },
-                onToggleFavorites = { viewModel.setFavoritesOnly(!favoritesOnly) },
-                onToggleSearch = {
-                    showSearch = !showSearch
-                    if (!showSearch) viewModel.setQuery("")
-                },
-                onToggleTrash = {
-                    showTrash = !showTrash
-                    if (showTrash) {
-                        showSearch = false
-                        viewModel.setQuery("")
-                    }
-                }
-            )
+            // The capture toolbar is hidden while the trash is open, so a
+            // new entry cannot be added into a list the user is not looking at.
+            if (!showTrash) {
+                EntryToolbar(
+                    isRecording = recorder.isRecording,
+                    onPickImage = {
+                        imagePicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    onToggleRecording = {
+                        if (recorder.isRecording) {
+                            stopRecording()
+                        } else if (
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            startRecording()
+                        } else {
+                            audioPermission.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    },
+                    onAddLink = { showLinkDialog = true },
+                    onPaste = { viewModel.pasteFromClipboard() }
+                )
+            }
 
             if (showTrash) {
                 if (deletedEntries.isNotEmpty()) {
@@ -400,11 +451,21 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
             }
         )
     }
+
+    if (showLinkDialog) {
+        LinkDialog(
+            onDismiss = { showLinkDialog = false },
+            onConfirm = { url ->
+                viewModel.addLinkEntry(url)
+                showLinkDialog = false
+            }
+        )
+    }
 }
 
 
 /**
- * The capture toolbar.
+ * The capture toolbar: photo, microphone, link, paste.
  *
  * Internal (not private) so the accessibility tests can render it on its own,
  * e.g. with a scaled font.
@@ -412,33 +473,11 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
 @Composable
 internal fun EntryToolbar(
     isRecording: Boolean,
-    recordingSeconds: Int = 0,
-    favoritesOnly: Boolean,
-    showSearch: Boolean = false,
-    showTrash: Boolean = false,
-    inTrash: Boolean = false,
     onPickImage: () -> Unit,
     onToggleRecording: () -> Unit,
-    onToggleFavorites: () -> Unit,
-    onToggleSearch: () -> Unit = {},
-    onToggleTrash: () -> Unit = {}
+    onAddLink: () -> Unit,
+    onPaste: () -> Unit
 ) {
-    // The trash is about restoring and deleting, so the capture actions are
-    // hidden there: a new entry would not show up in the list the user is
-    // looking at.
-    if (inTrash) {
-        IconButton(
-            onClick = onToggleTrash,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = stringResource(R.string.entry_show_entries)
-            )
-        }
-        return
-    }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -468,46 +507,23 @@ internal fun EntryToolbar(
             )
         }
 
-        // The recording itself is shown above the toolbar, so the button only
-        // says that it stops the recording.
-
-        // The toggles carry their state, so a screen reader says whether they
-        // are on. The label stays the same, so it is still understandable
-        // without seeing the screen.
-        IconToggleButton(
-            checked = favoritesOnly,
-            onCheckedChange = { onToggleFavorites() },
+        IconButton(
+            onClick = onAddLink,
             modifier = Modifier.size(48.dp)
         ) {
             Icon(
-                imageVector = if (favoritesOnly) {
-                    Icons.Filled.Favorite
-                } else {
-                    Icons.Filled.FavoriteBorder
-                },
-                contentDescription = stringResource(R.string.entry_favorites)
+                painter = painterResource(R.drawable.ic_link),
+                contentDescription = stringResource(R.string.entry_add_link)
             )
         }
 
-        IconToggleButton(
-            checked = showSearch,
-            onCheckedChange = { onToggleSearch() },
+        IconButton(
+            onClick = onPaste,
             modifier = Modifier.size(48.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.Search,
-                contentDescription = stringResource(R.string.entry_search)
-            )
-        }
-
-        IconToggleButton(
-            checked = showTrash,
-            onCheckedChange = { onToggleTrash() },
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = stringResource(R.string.entry_show_trash)
+                painter = painterResource(R.drawable.ic_paste),
+                contentDescription = stringResource(R.string.entry_paste)
             )
         }
     }

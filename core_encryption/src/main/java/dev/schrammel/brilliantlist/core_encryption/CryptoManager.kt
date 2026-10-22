@@ -1,7 +1,10 @@
 package dev.schrammel.brilliantlist.core_encryption
 
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.security.keystore.KeyProperties.AUTH_BIOMETRIC_STRONG
+import android.security.keystore.KeyProperties.AUTH_DEVICE_CREDENTIAL
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.KeyStore
@@ -97,6 +100,55 @@ object CryptoManager {
                 .setUnlockedDeviceRequired(true)
                 .build()
             keyGenerator.init(spec)
+            return keyGenerator.generateKey()
+        } catch (e: CryptoUnavailableException) {
+            throw e
+        } catch (e: Exception) {
+            throw CryptoUnavailableException("The device keystore is not available", e)
+        }
+    }
+
+    /**
+     * Creates a key that requires user authentication (biometric or device
+     * credential) before it can be used.
+     *
+     * The key wraps the SQLCipher passphrase, so the database cannot be
+     * opened without the user proving who they are. The key is only usable
+     * while the device is unlocked.
+     *
+     * This key is version 3. The "master key" (version 2) still protects the
+     * media files. The auth key wraps the passphrase, which is the "master
+     * key" of the database. This satisfies the requirement to bind the
+     * Keystore key to the user without breaking the existing media pipeline.
+     */
+    fun createAuthKey(alias: String): SecretKey {
+        try {
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            if (keyStore.containsAlias(alias)) {
+                keyStore.deleteEntry(alias)
+            }
+            val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
+            val builder = KeyGenParameterSpec.Builder(
+                alias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(false)
+                .setUserAuthenticationRequired(true)
+                .setUnlockedDeviceRequired(true)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                builder.setUserAuthenticationParameters(
+                    0,
+                    AUTH_BIOMETRIC_STRONG or AUTH_DEVICE_CREDENTIAL
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                builder.setUserAuthenticationValidityDurationSeconds(0)
+            }
+
+            keyGenerator.init(builder.build())
             return keyGenerator.generateKey()
         } catch (e: CryptoUnavailableException) {
             throw e

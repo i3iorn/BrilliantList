@@ -1,0 +1,66 @@
+<resources>
+    <!-- The capture field. The entry is saved with the keyboard, so a note
+         takes one step instead of a dialog. -->
+    <string name="entry_capture_label">Din briljanta grej</string>
+    <string name="entry_capture_hint">Fånga en briljant grej…</string>
+    <!-- The search. -->
+    <string name="entry_search">Sök</string>
+    <string name="entry_search_hint">Sök i dina inlägg</string>
+    <string name="entry_search_clear">Rensa sökning</string>
+    <!-- The number of entries the search found. -->
+    <plurals name="entry_search_results">
+        <item quantity="one">%1$d inlägg</item>
+        <item quantity="other">%1$d inlägg</item>
+    </plurals>
+    <string name="entry_empty_search">Inget matchar din sökning.</string>
+    <!-- The trash. -->
+    <string name="entry_show_trash">Nyligen raderade</string>
+    <string name="entry_show_entries">Tillbaka till inlägg</string>
+    <string name="entry_empty_trash">Inget har raderats.</string>
+    <string name="entry_empty_trash_action">Töm papperskorgen</string>
+    <string name="entry_empty_trash_title">Töm papperskorgen?</string>
+    <string name="entry_empty_trash_text">De raderade inläggen och deras foton och inspelningar raderas för alltid. Detta kan inte ångras.</string>
+    <string name="entry_trash_empty_action">Töm papperskorgen</string>
+    <!-- The recording. -->
+    <string name="entry_recording">Spelar in %1$s</string>
+    <string name="entry_recording_running">Spelar in %1$s — %2$s kvar</string>
+    <string name="entry_recording_limit">Inspelningen avbröts eftersom den nådde den maximala längden.</string>
+    <string name="entry_add_image">Lägg till foto</string>
+    <string name="entry_record">Spela in ljud</string>
+    <string name="entry_stop_recording">Stoppa inspelningen</string>
+    <string name="entry_favorites">Favoriter</string>
+    <string name="entry_empty">Inget här än. Lägg till din första briljanta grej.</string>
+    <string name="entry_empty_action">Lägg till ett inlägg</string>
+    <string name="entry_empty_favorites">Inga favoriter än. Tryck på hjärtat på ett inlägg för att spara det här.</string>
+    <string name="entry_deleted_message">Inlägg raderat</string>
+    <string name="entry_error_image">Bilden kunde inte läggas till</string>
+    <string name="entry_error_audio">Inspelningen kunde inte sparas</string>
+    <string name="entry_added_image">Bild tillagd</string>
+    <string name="entry_added_audio">Inspelning tillagd</string>
+    <string name="entry_copied">Kopierat till urklipp</string>
+    <string name="action_undo">Ångra</string>
+    <string name="action_save">Spara</string>
+    <string name="action_cancel">Avbryt</string>
+    <string name="action_copy">Kopiera</string>
+    <string name="entry_dialog_title">Nytt inlägg</string>
+    <string name="entry_edit_title">Redigera inlägg</string>
+    <string name="entry_dialog_label">Din briljanta grej</string>
+    <string name="entry_dialog_hint">Fånga en briljant grej…</string>
+    <string name="entry_play_audio">Spela upp ljud</string>
+    <string name="entry_stop_audio">Stoppa ljudet</string>
+    <string name="entry_audio_label">Ljudinspelning</string>
+    <string name="entry_audio_position">%1$s av %2$s</string>
+    <string name="entry_image_description">Bild bifogad till det här inlägget</string>
+    <string name="entry_move_up">Flytta upp</string>
+    <string name="entry_move_down">Flytta ner</string>
+    <string name="entry_position">Position %1$d av %2$d</string>
+
+    <!-- The link and clipboard actions. -->
+    <string name="entry_add_link">Lägg till länk</string>
+    <string name="entry_paste">Klistra in</string>
+    <string name="entry_link_hint">Ange en webbadress</string>
+    <string name="entry_link_invalid">Endast http- och https-adresser är tillåtna</string>
+    <string name="entry_clipboard_empty">Urklippet är tomt</string>
+    <string name="entry_link_dialog_title">Lägg till en länk</string>
+    <string name="entry_link_dialog_label">Webbadress</string>
+</resources>

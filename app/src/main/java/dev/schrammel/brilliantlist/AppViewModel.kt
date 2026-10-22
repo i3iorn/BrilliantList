@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.schrammel.brilliantlist.core_data.repository.EntryRepository
 import dev.schrammel.brilliantlist.core_data.repository.SettingsRepository
-import dev.schrammel.brilliantlist.core_model.CrisisRegion
+import dev.schrammel.brilliantlist.core_model.CrisisCatalog
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.Settings
 import dev.schrammel.brilliantlist.core_model.SortMode
@@ -35,7 +35,7 @@ class AppViewModel @Inject constructor(
                 rotationMode = RotationMode.RANDOM,
                 rotationIntervalMinutes = 30,
                 widgetAutoUpdate = true,
-                crisisRegion = CrisisRegion.DEFAULT.code,
+                crisisRegion = CrisisCatalog.DEFAULT_COUNTRY,
                 sortMode = SortMode.MANUAL,
                 widgetShowContent = false
             )

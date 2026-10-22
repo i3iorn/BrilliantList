@@ -9,7 +9,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.schrammel.brilliantlist.core_data.repository.EntryRepository
 import dev.schrammel.brilliantlist.core_data.repository.SettingsRepository
 import dev.schrammel.brilliantlist.core_model.AppLockDelay
-import dev.schrammel.brilliantlist.core_model.CrisisRegion
+import dev.schrammel.brilliantlist.core_model.CrisisCatalog
+import dev.schrammel.brilliantlist.core_model.CrisisCountry
 import dev.schrammel.brilliantlist.core_model.JournalStats
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.Settings
@@ -47,7 +48,7 @@ class SettingsViewModel @Inject constructor(
                 rotationMode = RotationMode.RANDOM,
                 rotationIntervalMinutes = 30,
                 widgetAutoUpdate = true,
-                crisisRegion = CrisisRegion.DEFAULT.code,
+                crisisRegion = CrisisCatalog.DEFAULT_COUNTRY,
                 sortMode = SortMode.MANUAL,
                 widgetShowContent = false
             )
@@ -67,7 +68,7 @@ class SettingsViewModel @Inject constructor(
     )
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
-    fun onRegionChange(region: CrisisRegion) {
+    fun onRegionChange(region: CrisisCountry) {
         viewModelScope.launch { settingsRepository.setCrisisRegion(region.code) }
     }
 

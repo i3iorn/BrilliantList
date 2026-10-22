@@ -1,0 +1,11 @@
+<resources>
+    <string name="crisis_region">Region: %1$s</string>
+    <string name="crisis_region_unrecognized">Din region känns inte igen, så endast allmänna nödnummer visas. Välj din region i Inställningar för att se lokala jourlinjer.</string>
+    <!-- The action of a resource depends on its type: a text line cannot be
+         called and a helpline is not always a text line. -->
+    <string name="crisis_action_call">Ring %1$s</string>
+    <string name="crisis_action_text">Smsa %1$s</string>
+    <string name="crisis_free">gratis</string>
+    <string name="crisis_anonymous">anonym</string>
+    <string name="crisis_verified">Numret kontrollerat %1$s</string>
+</resources>

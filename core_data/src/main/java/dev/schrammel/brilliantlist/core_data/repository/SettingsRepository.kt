@@ -10,7 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.schrammel.brilliantlist.core_model.AppLockDelay
-import dev.schrammel.brilliantlist.core_model.CrisisRegion
+import dev.schrammel.brilliantlist.core_model.CrisisCatalog
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.Settings
 import dev.schrammel.brilliantlist.core_model.SortMode
@@ -49,7 +49,7 @@ class SettingsRepository @Inject constructor(
                 ?: RotationMode.RANDOM,
             rotationIntervalMinutes = prefs[Keys.ROTATION_INTERVAL] ?: 30,
             widgetAutoUpdate = prefs[Keys.WIDGET_AUTO_UPDATE] ?: true,
-            crisisRegion = prefs[Keys.CRISIS_REGION] ?: CrisisRegion.DEFAULT.code,
+            crisisRegion = prefs[Keys.CRISIS_REGION] ?: defaultCountry(),
             sortMode = prefs[Keys.SORT_MODE]?.let { SortMode.valueOf(it) } ?: SortMode.MANUAL,
             // Privacy by default: journal text does not end up on the home
             // screen until the user asks for it.
@@ -96,5 +96,19 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAppLockDelay(delay: AppLockDelay) {
         context.settingsStore.edit { it[Keys.APP_LOCK_DELAY] = delay.name }
+    }
+
+    /**
+     * The country of the device, when the app knows it.
+     *
+     * A person in Sweden gets the lines of Sweden without setting anything.
+     */
+    private fun defaultCountry(): String {
+        val region = context.resources.configuration.locales[0].country
+        return if (CrisisCatalog.country(region) != null) {
+            region
+        } else {
+            CrisisCatalog.DEFAULT_COUNTRY
+        }
     }
 }
