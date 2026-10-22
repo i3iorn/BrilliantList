@@ -52,7 +52,6 @@ import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import dev.schrammel.brilliantlist.core_model.CrisisCatalog
-import dev.schrammel.brilliantlist.core_model.CrisisCatalog
 import dev.schrammel.brilliantlist.core_model.CrisisCountry
 import dev.schrammel.brilliantlist.core_model.JournalStats
 import dev.schrammel.brilliantlist.core_model.RotationMode
@@ -296,7 +295,8 @@ fun SettingsScreen(
             SectionHeader(stringResource(R.string.settings_section_support))
 
             RegionPicker(
-                region = CrisisCatalog.normalize(settings.crisisRegion),
+                region = CrisisCatalog.normalize(settings.crisisRegion)
+                    ?.let { code -> CrisisCatalog.country(code) },
                 onRegionChange = viewModel::onRegionChange
             )
 

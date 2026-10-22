@@ -167,7 +167,7 @@ private fun CrisisResourceCard(
             // not speak English can recognise the line.
             if (!resource.localName.isNullOrBlank() && resource.localName != resource.name) {
                 Text(
-                    text = resource.localName,
+                    text = resource.localName!!,
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
