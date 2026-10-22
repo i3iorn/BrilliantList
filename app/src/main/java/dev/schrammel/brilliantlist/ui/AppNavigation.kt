@@ -26,6 +26,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.schrammel.brilliantlist.AppViewModel
+import dev.schrammel.brilliantlist.BuildConfig
 import dev.schrammel.brilliantlist.R
 import dev.schrammel.brilliantlist.feature_crisis.CrisisScreen
 import dev.schrammel.brilliantlist.feature_entry.EntryScreen
@@ -118,7 +119,9 @@ fun AppNavigation(viewModel: AppViewModel) {
         ) {
             composable(ROUTE_ENTRIES) { EntryScreen() }
             composable(ROUTE_CRISIS) { CrisisScreen() }
-            composable(ROUTE_SETTINGS) { SettingsScreen() }
+            composable(ROUTE_SETTINGS) {
+                SettingsScreen(versionName = BuildConfig.VERSION_NAME)
+            }
         }
     }
 }

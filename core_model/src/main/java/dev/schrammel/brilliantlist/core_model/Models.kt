@@ -80,6 +80,24 @@ enum class SortMode {
 }
 
 /**
+ * What the journal takes up on the device.
+ *
+ * The app says what it stores, so the promise that nothing leaves the
+ * device is a number and not only a sentence.
+ */
+data class JournalStats(
+    /** The entries that are not in the trash. */
+    val entryCount: Int,
+    /** The size of the encrypted media files. */
+    val mediaBytes: Long,
+    /** The size of the encrypted database. */
+    val databaseBytes: Long
+) {
+    /** Everything the journal takes up. */
+    val totalBytes: Long get() = mediaBytes + databaseBytes
+}
+
+/**
  * How a crisis resource can be reached.
  *
  * Not every helpline can be called: text services only accept a message, and

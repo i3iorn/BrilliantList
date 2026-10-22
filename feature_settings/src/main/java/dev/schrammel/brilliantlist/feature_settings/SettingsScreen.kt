@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -35,19 +36,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import dev.schrammel.brilliantlist.core_model.CrisisCatalog
 import dev.schrammel.brilliantlist.core_model.CrisisRegion
+import dev.schrammel.brilliantlist.core_model.JournalStats
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.SortMode
 
@@ -57,9 +62,15 @@ import dev.schrammel.brilliantlist.core_model.SortMode
  * The screen is scrollable, so every control stays reachable when the font
  * is large or the screen is small. The labels use the free width of their
  * row, so a switch is never pushed off the screen.
+ *
+ * [versionName] is the version of the app. The module does not know it - the
+ * app hands it over.
  */
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    versionName: String = ""
+) {
     val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -234,11 +245,65 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            // What the journal takes up: the promise that nothing leaves the
+            // device is a number and not only a sentence.
+            val stats by produceState<JournalStats?>(null) {
+                value = viewModel.journalStats()
+            }
+            Text(
+                text = stats?.let {
+                    stringResource(
+                        R.string.settings_stored_stats,
+                        it.entryCount,
+                        formatBytes(it.totalBytes)
+                    )
+                } ?: stringResource(R.string.settings_stored_stats_unknown),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
             SectionHeader(stringResource(R.string.settings_section_support))
 
             RegionPicker(
                 region = CrisisCatalog.normalize(settings.crisisRegion),
                 onRegionChange = viewModel::onRegionChange
+            )
+
+            SectionHeader(stringResource(R.string.settings_section_about))
+
+            InfoRow(
+                title = stringResource(R.string.settings_about_version),
+                value = versionName.ifEmpty { stringResource(R.string.settings_about_unknown) }
+            )
+            InfoRow(
+                title = stringResource(R.string.settings_about_licence),
+                value = stringResource(R.string.settings_about_licence_value)
+            )
+            LinkRow(
+                title = stringResource(R.string.settings_about_source),
+                value = stringResource(R.string.settings_about_source_value),
+                url = SOURCE_URL
+            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.settings_about_key),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = stringResource(R.string.settings_about_key_value),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = stringResource(R.string.settings_about_inspiration),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            LinkRow(
+                title = stringResource(R.string.settings_about_inspiration_link),
+                value = stringResource(R.string.settings_about_inspiration_url),
+                url = INSPIRATION_URL
             )
         }
     }
@@ -563,6 +628,59 @@ private fun passphraseStrength(passphrase: String): PassphraseStrength {
         else -> PassphraseStrength.WEAK
     }
 }
+
+/** A row of the settings that shows a value. */
+@Composable
+private fun InfoRow(title: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/** A row of the settings that opens a link. */
+@Composable
+private fun LinkRow(title: String, value: String, url: String) {
+    val uriHandler = LocalUriHandler.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { uriHandler.openUri(url) }
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+/** A size in the unit a person would use. */
+private fun formatBytes(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+    val kilobytes = bytes / 1024.0
+    if (kilobytes < 1024) return "%.0f kB".format(kilobytes)
+    val megabytes = kilobytes / 1024.0
+    if (megabytes < 1024) return "%.1f MB".format(megabytes)
+    return "%.1f GB".format(megabytes / 1024.0)
+}
+
+/** The source of the app. */
+private const val SOURCE_URL = "https://github.com/i3iorn/BrilliantList"
+
+/** The play the app is inspired by. */
+private const val INSPIRATION_URL = "https://everybrilliantthing.com/"
 
 /** True when the device has a screen lock, so the app lock can be used. */
 private fun Context.hasDeviceLock(): Boolean {

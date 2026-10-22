@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.schrammel.brilliantlist.R
+import dev.schrammel.brilliantlist.core_data.database.AppDatabase
 import dev.schrammel.brilliantlist.core_data.database.DatabaseKeyManager
 import java.io.File
 
@@ -74,7 +75,7 @@ fun KeyLostScreen(onStartOver: () -> Unit) {
  * built from scratch.
  */
 fun startOver(context: Context, keyManager: DatabaseKeyManager) {
-    context.deleteDatabase(DATABASE_NAME)
+    context.deleteDatabase(AppDatabase.DATABASE_NAME)
     File(context.filesDir, MEDIA_DIRECTORY).listFiles()?.forEach { it.delete() }
     keyManager.wipe()
 
@@ -84,9 +85,6 @@ fun startOver(context: Context, keyManager: DatabaseKeyManager) {
         context.startActivity(intent)
     }
 }
-
-/** The name of the database file, see [dev.schrammel.brilliantlist.core_data.database.AppDatabase]. */
-private const val DATABASE_NAME = "brilliantlist.db"
 
 /** The directory the media files live in. */
 private const val MEDIA_DIRECTORY = "media"

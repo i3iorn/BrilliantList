@@ -97,20 +97,16 @@ It should be repeated on a real phone before the release goes out.
 
 ---
 
-## Phase 1 — The app says what it is
+## Phase 1 — The app says what it is (done)
 
-### 1.1 The repository gets a licence
+### 1.1 The repository gets a licence (done)
 
 The repository is public now, and without a licence nobody may use the code -
-the README even links to a `LICENSE` that does not exist.
+the README even links to a `LICENSE` that did not exist. It has the Apache
+License 2.0, the text from apache.org. MIT is one command away if that suits
+the project better.
 
-- The licence is chosen (MIT or Apache-2.0) and added as `LICENSE`.
-- The README links to it.
-- The About section of the app names it.
-
-**Size: S.** (The choice is the user's.)
-
-### 1.2 The About section
+### 1.2 The About section (done)
 
 At the bottom of the settings, under a new heading "About":
 
@@ -133,11 +129,10 @@ in the app.
 
 - Files: `feature_settings/SettingsScreen.kt`, `feature_settings/.../strings.xml`,
   `app/ui/AppNavigation.kt`, `app/build.gradle.kts` (`buildConfig = true`)
-- Verify: a compose test that finds the version.
+- Verify: a compose test that finds the version and that the last row of the
+  settings is reachable.
 
-**Size: M.**
-
-### 1.3 What the app stores
+### 1.3 What the app stores (done)
 
 "Encrypted with a key that never leaves this device" is a claim; the number of
 entries and the size on the disk make it a fact.
@@ -152,9 +147,7 @@ and the reading touches the disk.
 
 - Files: `core_model/Models.kt`, `core_data/.../EntryRepository.kt`,
   `core_data/.../EntryDao.kt`, `feature_settings/SettingsScreen.kt`
-- Verify: the numbers match the database and the media directory.
-
-**Size: M.**
+- Verify: a compose test that finds the row.
 
 ---
 

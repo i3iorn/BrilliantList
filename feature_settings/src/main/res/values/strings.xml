@@ -3,10 +3,13 @@
     <string name="settings_section_widget">Home screen widget</string>
     <string name="settings_section_privacy">Privacy</string>
     <string name="settings_section_support">Support</string>
+    <string name="settings_section_about">About</string>
     <string name="settings_region">Crisis region</string>
     <string name="settings_region_unknown">Select a region</string>
     <string name="settings_widget_interval">Widget refresh interval</string>
-    <string name="settings_minutes">%1$d min</string>`n    <string name="settings_hours">%1$d h</string>`n    <string name="settings_days">%1$d d</string>
+    <string name="settings_minutes">%1$d min</string>
+    <string name="settings_hours">%1$d h</string>
+    <string name="settings_days">%1$d d</string>
     <string name="settings_rotation_mode">Rotation mode</string>
     <string name="settings_rotation_random">Random</string>
     <string name="settings_rotation_sequential">Sequential</string>
@@ -29,7 +32,13 @@
     <string name="settings_import_passphrase_title">Open the export</string>
     <string name="settings_export_passphrase_text">The file is encrypted with this passphrase. You need it again to import the file - it is not stored anywhere.</string>
     <string name="settings_passphrase_label">Passphrase</string>
-    <string name="settings_passphrase_repeat">Repeat the passphrase</string>`n    <string name="settings_passphrase_mismatch">The two passphrases are not the same</string>`n    <string name="settings_passphrase_strength">Strength: %1$s</string>`n    <string name="settings_passphrase_weak">weak</string>`n    <string name="settings_passphrase_fair">fair</string>`n    <string name="settings_passphrase_strong">strong</string>`n    <string name="settings_passphrase_too_short">The passphrase needs at least 8 characters.</string>
+    <string name="settings_passphrase_repeat">Repeat the passphrase</string>
+    <string name="settings_passphrase_mismatch">The two passphrases are not the same</string>
+    <string name="settings_passphrase_strength">Strength: %1$s</string>
+    <string name="settings_passphrase_weak">weak</string>
+    <string name="settings_passphrase_fair">fair</string>
+    <string name="settings_passphrase_strong">strong</string>
+    <string name="settings_passphrase_too_short">The passphrase needs at least 8 characters.</string>
     <string name="settings_export_done">The export was written</string>
     <string name="settings_export_failed">The export could not be written</string>
     <string name="settings_import_done">%1$d entries imported</string>
@@ -44,6 +53,22 @@
     <string name="settings_erase_done">Everything was erased</string>
     <!-- What the app stores. -->
     <string name="settings_stored_text">Your entries, photos and recordings are encrypted with a key that never leaves this device. Nothing is sent anywhere.</string>
+    <string name="settings_stored_stats">%1$d entries · %2$s on this device</string>
+    <string name="settings_stored_stats_unknown">Reading the size of the journal…</string>
+    <!-- About. -->
+    <string name="settings_about_version">Version</string>
+    <string name="settings_about_unknown">unknown</string>
+    <string name="settings_about_licence">Licence</string>
+    <string name="settings_about_licence_value">Apache License 2.0</string>
+    <string name="settings_about_source">Source code</string>
+    <string name="settings_about_source_value">github.com/i3iorn/BrilliantList</string>
+    <!-- The fingerprint of the release key. It has to match the key of the
+         repository (see scripts/create_release_key.py). -->
+    <string name="settings_about_key">Signing key (SHA-256)</string>
+    <string name="settings_about_key_value">ba29f3639ed9f7ba5408babe422f16f2fd8ae0f0cf960a444730520070536f00</string>
+    <string name="settings_about_inspiration">BrilliantList is inspired by Every Brilliant Thing, the play by Duncan Macmillan. This app is independent and not affiliated with the play or its creators.</string>
+    <string name="settings_about_inspiration_link">everybrilliantthing.com</string>
+    <string name="settings_about_inspiration_url">Read more about the play</string>
     <string name="action_ok">OK</string>
     <string name="action_cancel">Cancel</string>
 </resources>

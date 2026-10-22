@@ -43,6 +43,10 @@ interface EntryDao {
     @Query("SELECT * FROM entries WHERE isDeleted = 0 ORDER BY position ASC")
     suspend fun activeEntries(): List<EntryEntity>
 
+    /** The number of entries that are not in the trash. */
+    @Query("SELECT COUNT(*) FROM entries WHERE isDeleted = 0")
+    suspend fun countActive(): Int
+
     /** Every entry, deleted ones included. */
     @Query("SELECT * FROM entries")
     suspend fun allEntries(): List<EntryEntity>

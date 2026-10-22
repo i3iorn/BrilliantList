@@ -19,6 +19,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appStateDao(): AppStateDao
 
     companion object {
+        /** The name of the database file. */
+        const val DATABASE_NAME = "brilliantlist.db"
+
         /**
          * 1 -> 2: adds the app_state table.
          *
@@ -37,7 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun build(
             context: Context,
             passphrase: ByteArray,
-            name: String = "brilliantlist.db"
+            name: String = DATABASE_NAME
         ): AppDatabase {
             // SQLCipher 4.6+ bundles the native library in the AAR, but the app
             // has to load it explicitly before any native method is called.

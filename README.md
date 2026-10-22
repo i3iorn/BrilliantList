@@ -75,4 +75,4 @@ Contributions are welcome! There are no formal guidelines yet—if you have idea
 BrilliantList is built with strong privacy and security practices in mind. For more details, see [SECURITY.md](SECURITY.md). No security guarantees are made.
 
 ## License
-See [LICENSE](LICENSE) for details.
+[Apache License 2.0](LICENSE) — you may use, change and redistribute it, under the conditions of the licence.

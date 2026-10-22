@@ -8,6 +8,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
@@ -36,17 +38,48 @@ class SettingsAccessibilityTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     /** Renders the settings with a doubled font size. */
-    private fun setSettings(fontScale: Float = 2f) {
+    private fun setSettings(fontScale: Float = 2f, versionName: String = "") {
         composeRule.activity.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(
                 LocalDensity provides Density(density = density.density, fontScale = fontScale)
             ) {
                 BrilliantListTheme {
-                    SettingsScreen()
+                    SettingsScreen(versionName = versionName)
                 }
             }
         }
+    }
+
+    @Test
+    fun theSettingsSayWhichVersionTheyAre() {
+        setSettings(versionName = "0.2.0")
+
+        // The About section is at the bottom of the screen, so it has to be
+        // reachable by scrolling.
+        composeRule.onNodeWithText("0.2.0").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun theBottomOfTheSettingsIsReachable() {
+        setSettings(versionName = "0.2.0")
+
+        // The last row of the settings - the credit at the very bottom.
+        composeRule.onNodeWithText("Read more about the play")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun theSettingsSayWhatIsStored() {
+        setSettings()
+
+        // The number of entries and the size of the journal - the promise that
+        // nothing leaves the device is a number and not only a sentence.
+        composeRule.onAllNodesWithText("on this device", substring = true)
+            .onFirst()
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test

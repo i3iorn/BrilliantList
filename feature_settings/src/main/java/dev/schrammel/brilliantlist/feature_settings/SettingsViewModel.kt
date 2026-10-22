@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.schrammel.brilliantlist.core_data.repository.EntryRepository
 import dev.schrammel.brilliantlist.core_data.repository.SettingsRepository
 import dev.schrammel.brilliantlist.core_model.CrisisRegion
+import dev.schrammel.brilliantlist.core_model.JournalStats
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.Settings
 import dev.schrammel.brilliantlist.core_model.SortMode
@@ -50,6 +51,14 @@ class SettingsViewModel @Inject constructor(
                 widgetShowContent = false
             )
         )
+
+    /**
+     * What the journal takes up on the device.
+     *
+     * It is read when the settings open, not watched: the numbers change
+     * rarely and the reading touches the disk.
+     */
+    suspend fun journalStats(): JournalStats = entryRepository.journalStats()
 
     private val _events = MutableSharedFlow<SettingsEvent>(
         extraBufferCapacity = 4,

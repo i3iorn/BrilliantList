@@ -18,6 +18,8 @@ is built, and the tag of a release has to match it.
 - The credit to *Every Brilliant Thing* - it belongs where the people who use
   the app look, not only in the README.
 - The number of entries and the size of the journal on the disk.
+- The repository has an Apache License 2.0 - it is public now, and without a
+  licence nobody may use the code.
 
 ### The everyday list
 - The entries are grouped by day.

@@ -15,6 +15,7 @@ import dev.schrammel.brilliantlist.core_encryption.CryptoManager
 import dev.schrammel.brilliantlist.core_model.Entry
 import dev.schrammel.brilliantlist.core_model.AudioFormat
 import dev.schrammel.brilliantlist.core_model.EntryType
+import dev.schrammel.brilliantlist.core_model.JournalStats
 import dev.schrammel.brilliantlist.core_model.SortMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -296,6 +297,23 @@ class EntryRepository @Inject constructor(
             }
             restored.size
         }
+
+    /**
+     * What the journal takes up on the device.
+     *
+     * The numbers are read when they are asked for, not watched: they change
+     * rarely and the reading touches the disk.
+     */
+    suspend fun journalStats(): JournalStats = withContext(Dispatchers.IO) {
+        val media = mediaDirectory().listFiles()?.sumOf { it.length() } ?: 0L
+        val database = context.getDatabasePath(AppDatabase.DATABASE_NAME)
+            .let { if (it.exists()) it.length() else 0L }
+        JournalStats(
+            entryCount = dao.countActive(),
+            mediaBytes = media,
+            databaseBytes = database
+        )
+    }
 
     /**
      * Deletes every entry and every media file.
