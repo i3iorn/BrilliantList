@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">Brilliant List</string>
+    <string name="nav_entries">Entries</string>
+    <string name="nav_crisis">Crisis</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_support">Support</string>
+    <string name="app_locked_title">Your entries are locked</string>
+    <string name="app_locked_message">BrilliantList keeps your entries encrypted, and they can only be read while your device is unlocked. Unlock your device to continue.</string>
+    <string name="app_locked_retry">Try again</string>
+    <!-- The app lock. -->
+    <string name="app_lock_title">BrilliantList is locked</string>
+    <string name="app_lock_message">Your journal stays closed until you unlock it.</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_key_lost_title">The encryption key is gone</string>`n    <string name="app_key_lost_message">The key that protects your entries is not on this device any more, so they cannot be opened. You can start over with an empty journal.</string>`n    <string name="app_key_lost_action">Start over</string>`n    <string name="app_lock_prompt_title">Unlock BrilliantList</string>
+    <string name="app_lock_prompt_subtitle">Your journal is encrypted and stays closed.</string>
 </resources>

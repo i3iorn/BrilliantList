@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.BrilliantList" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- DayNight so the system window (splash, status bar) follows the user's
+         theme. All in-app colors come from the Compose theme in core_ui. -->
+    <style name="Theme.BrilliantList" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>

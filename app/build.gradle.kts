@@ -54,9 +54,12 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation(libs.androidx.navigation.compose)
     implementation(project(":core_data"))
     implementation(project(":core_encryption"))
+    implementation(project(":core_model"))
     implementation(project(":core_ui"))
     implementation(project(":feature_entry"))
     implementation(project(":feature_widget"))
@@ -74,5 +77,7 @@ dependencies {
     implementation(libs.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
+    // The app lock asks for the screen lock or a fingerprint.
+    implementation(libs.androidx.biometric)
 }
 

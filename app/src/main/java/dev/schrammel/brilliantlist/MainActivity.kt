@@ -1,61 +1,133 @@
 package dev.schrammel.brilliantlist
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.activity.viewModels
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
+import dev.schrammel.brilliantlist.core_data.database.DatabaseKeyManager
 import dev.schrammel.brilliantlist.core_ui.theme.BrilliantListTheme
-import dev.schrammel.brilliantlist.feature_entry.EntryScreen
-import dev.schrammel.brilliantlist.feature_crisis.CrisisScreen
-import dev.schrammel.brilliantlist.feature_settings.SettingsScreen
+import dev.schrammel.brilliantlist.ui.AppLockScreen
+import dev.schrammel.brilliantlist.ui.AppLockState
+import dev.schrammel.brilliantlist.ui.AppLockViewModel
+import dev.schrammel.brilliantlist.ui.AppNavigation
+import dev.schrammel.brilliantlist.ui.DeviceLockedScreen
+import dev.schrammel.brilliantlist.ui.KeyLostScreen
+import dev.schrammel.brilliantlist.ui.startOver
+import dev.schrammel.brilliantlist.ui.rememberDeviceUnlocked
+import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+
+    @Inject
+    lateinit var keyManager: DatabaseKeyManager
+
+    private val lockViewModel: AppLockViewModel by viewModels()
+
+    private lateinit var biometricPrompt: BiometricPrompt
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Journal content must not end up in screenshots, screen recordings or
+        // the thumbnail of the recent apps list.
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+
+        biometricPrompt = BiometricPrompt(
+            this,
+            ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(
+                    result: BiometricPrompt.AuthenticationResult
+                ) {
+                    lockViewModel.unlockSucceeded()
+                }
+            }
+        )
+
         setContent {
             BrilliantListTheme {
-                AppNav()
+                val unlockedState = rememberDeviceUnlocked(keyManager)
+                val unlocked by unlockedState
+                val lockState by lockViewModel.state.collectAsState()
+                val lockAvailable by lockViewModel.available.collectAsState()
+                // The key can be gone - the Keystore was reset, for example.
+                // The entries cannot be decrypted any more, so the app says
+                // so instead of crashing when the database is opened.
+                val keyLost = remember { keyManager.isKeyLost() }
+
+                when {
+                    // The key cannot be used while the device is locked.
+                    !unlocked -> DeviceLockedScreen(
+                        onRetry = { unlockedState.value = keyManager.isAvailable() }
+                    )
+
+                    // The encryption key is gone: the entries are lost.
+                    keyLost -> KeyLostScreen(
+                        onStartOver = { startOver(this, keyManager) }
+                    )
+
+                    // The app lock: the user has to prove who they are.
+                    lockState == AppLockState.LOCKED && lockAvailable -> AppLockScreen(
+                        onUnlock = { authenticate() }
+                    )
+
+                    // The setting has not been read yet: nothing is shown, so
+                    // the journal cannot be seen before the lock is known.
+                    lockState == AppLockState.UNKNOWN -> Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    )
+
+                    else -> {
+                        val appViewModel: AppViewModel = viewModel()
+                        AppNavigation(appViewModel)
+                    }
+                }
             }
         }
     }
-}
 
-@Composable
-fun AppNav() {
-    val navController = rememberNavController()
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Simple navigation: without this the crisis/settings destinations are unreachable.
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = { navController.navigate("entries") }) { Text("Entries") }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = { navController.navigate("crisis") }) { Text("Crisis") }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = { navController.navigate("settings") }) { Text("Settings") }
-        }
-        NavHost(navController, startDestination = "entries") {
-            composable("entries") { EntryScreen() }
-            composable("crisis") { CrisisScreen() }
-            composable("settings") { SettingsScreen() }
-        }
+    override fun onResume() {
+        super.onResume()
+        lockViewModel.onResumed()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        lockViewModel.onBackgrounded()
+    }
+
+    /**
+     * Asks the user for their screen lock or their fingerprint.
+     *
+     * The device credential is allowed as well: a fingerprint is not always
+     * available, and a journal that cannot be opened is worse than useless.
+     */
+    private fun authenticate() {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(getString(R.string.app_lock_prompt_title))
+            .setSubtitle(getString(R.string.app_lock_prompt_subtitle))
+            .setAllowedAuthenticators(authenticators)
+            .build()
+        biometricPrompt.authenticate(promptInfo)
     }
 }
