@@ -107,6 +107,8 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -camera-back none
+          # The image of the runner asks for more disk than the runner has.
+          pre-emulator-launch-script: .github/emulator-setup.sh
           script: >-
             ./gradlew
             :app:connectedDebugAndroidTest
