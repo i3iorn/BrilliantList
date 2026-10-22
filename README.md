@@ -9,14 +9,17 @@ BrilliantList is a minimal, privacy-first Android app designed to help you notic
 BrilliantList is for anyone who wants to see more happiness in their life. It is especially mindful of people who may be struggling with depression or low mood, offering a safe, emotionally gentle space to reflect on positive moments.
 
 ## Key Features
-- **Effortless Capture:** Add text, images, or audio in under two seconds—no multi-step flows.
+- **Effortless Capture:** Write a note in one field, add a photo, or record a voice note—no multi-step flows.
+- **Search and Favorites:** Find what you wrote, keep the best of it.
+- **Recently Deleted:** A mistake is one tap away from being undone.
 - **List Management:** View, reorder (drag & drop), and favorite your entries.
 - **Rotation Engine:** Surface meaningful moments at configurable intervals, randomly or sequentially, with no repetition caching.
-- **Minimal Widget:** See a single entry on your home screen; tap to open the app.
-- **Crisis Page:** Offline, region-aware resources for when you need extra support.
-- **Private by Default:** No ads, no analytics, no tracking, and no network calls unless you enable them.
+- **Minimal Widget:** See a single entry on your home screen—or nothing at all, if you prefer. Tap to open the app.
+- **Crisis Page:** Offline, region-aware resources for when you need extra support, with the right action for every helpline: a call, a text, or just information.
+- **Your Own Backup:** Export the journal as an encrypted file with a passphrase you choose, and restore it on another device.
+- **Private by Default:** No ads, no analytics, no tracking, and no network calls at all—the app cannot even reach the internet.
 - **Offline-First:** Works fully without internet access.
-- **Accessibility:** Designed to be usable by everyone.
+- **Accessibility:** Designed to be usable by everyone, also with a large font.
 
 ## Core Principles
 - Radical simplicity—every feature must justify its existence
@@ -42,4 +45,3 @@ BrilliantList is built with strong privacy and security practices in mind. For m
 
 ## License
 See [LICENSE](LICENSE) for details.
-
