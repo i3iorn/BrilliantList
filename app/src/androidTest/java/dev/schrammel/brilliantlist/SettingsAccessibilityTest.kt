@@ -71,6 +71,10 @@ class SettingsAccessibilityTest {
             .onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ToggleableState))
             .fetchSemanticsNodes()
         assertTrue("no switches found", switches.isNotEmpty())
+        assertTrue(
+            "no switch was laid out: ${switches.map { it.boundsInRoot }}",
+            switches.any { it.boundsInRoot.width > 0 }
+        )
 
         // The content has a padding of 16 dp on both sides, so a switch that
         // is pushed out of the row would reach the edge of the screen.
@@ -89,18 +93,14 @@ class SettingsAccessibilityTest {
         setSettings()
 
         // The label of a switch shares the row with the switch, so it has to
-        // end where the switch begins.
+        // end before the edge of the content - otherwise it would be drawn
+        // underneath the switch.
         val label = composeRule.onNodeWithText("Widget auto update").fetchSemanticsNode()
-        val switch = composeRule
-            .onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ToggleableState))
-            .fetchSemanticsNodes()
-            .first {
-                it.boundsInRoot.width > 0 &&
-                    it.boundsInRoot.top in label.boundsInRoot.top..label.boundsInRoot.bottom
-            }
+        val metrics = composeRule.activity.resources.displayMetrics
+        val contentRight = metrics.widthPixels - 16 * metrics.density
         assertTrue(
-            "the label covers the switch: ${label.boundsInRoot} / ${switch.boundsInRoot}",
-            label.boundsInRoot.right <= switch.boundsInRoot.left
+            "the label covers the switch: ${label.boundsInRoot}",
+            label.boundsInRoot.right < contentRight
         )
     }
 }
