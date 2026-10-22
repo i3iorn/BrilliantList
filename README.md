@@ -8,6 +8,11 @@ BrilliantList is a minimal, privacy-first Android app designed to help you notic
 ## Who is it for?
 BrilliantList is for anyone who wants to see more happiness in their life. It is especially mindful of people who may be struggling with depression or low mood, offering a safe, emotionally gentle space to reflect on positive moments.
 
+## Inspiration
+BrilliantList is inspired by **[Every Brilliant Thing](https://everybrilliantthing.com/)**, the play by Duncan Macmillan (with Jonny Donahoe, directed by Jeremy Herrin and Duncan Macmillan). The show follows one person looking back on their life through a list of every wonderful, beautiful, and delightful thing—big, small, and everything in between—that makes life worth living. The project behind it also collects brilliant things together with [Project Healthy Minds](https://app.projecthealthyminds.com/partnerships/every-brilliant-thing), and that idea of keeping a list of the good things is what this app is built on.
+
+BrilliantList is an independent, unofficial app. It is not affiliated with, endorsed by, or connected to the play, its writers, its producers, or the brilliant things list on that site. It is simply an attempt to put the idea of collecting brilliant things in your pocket, in a way that stays on your device.
+
 ## Key Features
 - **Effortless Capture:** Write a note in one field, add a photo, or record a voice note—no multi-step flows.
 - **Search and Favorites:** Find what you wrote, keep the best of it.
