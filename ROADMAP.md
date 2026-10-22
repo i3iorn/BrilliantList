@@ -322,3 +322,199 @@ needs a migration: they are new keys in the DataStore.
 
 None for now - the four that were open are decided (see the decisions above).
 If something else comes up, it goes here.
+---
+
+## v0.3.0 - "Links, the clipboard and more of the world"
+
+**In one line:** the journal can hold a link and whatever was on the
+clipboard, and the crisis page knows far more of the world - with the
+numbers that are verified and the names in the language of the country.
+
+v0.2.0 made the app pleasant to use every day. v0.3.0 makes it bigger:
+two more ways to put something into the journal, and a crisis page that
+covers 24 countries instead of 5, with the local names, the opening
+hours, the languages and the date the number was last checked.
+
+**Done when:**
+
+- A link can be added, is stored encrypted, and opens in the browser when
+  it is tapped.
+- Whatever was on the clipboard - a screenshot, a link or a text - can be
+  added with one tap.
+- The crisis page covers 24 countries with verified numbers, shows the
+  name in the language of the country, the hours, and the date the
+  number was last checked.
+- The interface speaks more than one language.
+
+## The three things, and what they mean
+
+### A link
+
+A new kind of entry: a URL. The app has no internet permission, so it
+cannot show a preview of the page - and it does not need to. The link is
+stored like every other entry (encrypted), the card shows the address, and
+tapping it hands it to the browser of the device.
+
+Two rules, because the address comes from outside:
+
+- **Only `http` and `https`.** The app hands the address to the system
+  with `ACTION_VIEW`. An `intent://` or `javascript:` address could make
+  the system do something the user did not expect, so everything else is
+  refused with a clear message.
+- **The address is shown as text.** A link that looks like
+  `brilliant-list.example` has to be read, not trusted.
+
+### From the clipboard
+
+One button that looks at the clipboard and does the right thing:
+
+- a picture (a screenshot) becomes a photo entry, with the metadata
+  removed like every other photo,
+- an address becomes a link entry,
+- anything else becomes a text entry.
+
+The clipboard is only read when the button is tapped, never on its own:
+the clipboard of Android is shared with every app on the device, and it
+often holds something private.
+
+### More languages and regions
+
+Two different things, and they are treated differently.
+
+**The regions come from data.** The
+[open-helplines](https://github.com/Kouki-odaka/open-helplines) registry
+holds verified helplines for 24 countries - AU, BD, BR, CA, CN, DE, EG,
+FR, GB, ID, IN, JP, KR, MX, NG, NZ, PH, PK, RU, TR, UA, US, VN, ZA -
+as [CC0 data](https://github.com/Kouki-odaka/open-helplines/blob/main/LICENSE-DATA):
+public domain, no attribution needed, and every record carries the date
+it was last checked. The five hand-written countries of the app today
+become the first five of twenty-four, and the hand-written numbers are
+replaced by verified ones.
+
+**The languages of the crisis data come with it.** Every record has the
+name in the language of the country (`local_name`), the languages the
+line answers in, the opening hours, and whether it is free and anonymous.
+
+**The languages of the interface are work.** The interface is five
+modules of strings. A translation has to be right - this is an app about
+low moods, and a bad translation does harm. German can be done well
+here; the others want a native speaker.
+
+## The phases
+
+### Phase 0 - The groundwork
+
+#### 0.1 An unknown entry type must not crash the app
+
+The type of an entry is a word in the database. A new type ("LINK")
+makes an **older** build crash when it reads such an entry - and people
+do install an older build over a newer one.
+
+- The mapper becomes forgiving: an unknown type is shown as a text entry
+  instead of crashing.
+- Files: `core_data/.../mapper/EntryMappers.kt`
+- Verify: a unit test that maps an unknown type.
+
+#### 0.2 The toolbar gets room
+
+The toolbar has five buttons; the two new capture actions would make
+seven, and seven do not fit on a phone.
+
+- The **capture** actions stay in the toolbar: photo, microphone, link,
+  paste.
+- The **view** actions (favourites, search, trash) move into the top bar,
+  where there is room for them.
+- Files: `feature_entry/EntryScreen.kt`, `app/ui/AppNavigation.kt`
+
+### Phase 1 - A link
+
+- A new kind of entry, `LINK`, with the address as its text. The type
+  column is a word, so **no migration is needed** - but see 0.1.
+- The card shows the address and the domain; tapping it opens the
+  browser, the address is checked first (only `http` and `https`).
+- The entry is added with a small dialog: the address, an inline error,
+  and the keyboard.
+- Files: `core_model/Models.kt`, `feature_entry/EntryCard.kt` (via
+  `core_ui`), `feature_entry/EntryScreen.kt`
+- Verify: a unit test for the check of the address, a compose test that
+  the card shows the address.
+
+### Phase 2 - From the clipboard
+
+- One button, one decision: a picture, an address or a text.
+- A picture from the clipboard goes through the same path as a photo
+  from the picker, so the metadata is removed and the file is encrypted.
+- An empty clipboard says so instead of doing nothing.
+- Files: `feature_entry/EntryViewModel.kt`, `feature_entry/EntryScreen.kt`
+- Verify: an instrumented test that pastes a text and a link.
+
+### Phase 3 - The crisis page knows more of the world
+
+- A script downloads the registry and writes a Kotlin file with the
+  records: `scripts/import_helplines.py` ->
+  `core_model/.../HelplineCatalog.kt`. The file says that it is
+  generated, and the script is the only thing that ever changes it.
+- The catalog stays pure Kotlin and unit tested, the app needs no JSON
+  parser at runtime and no internet.
+- The app shows what the data has: the name in the language of the
+  country, the description, the hours, whether it is free and anonymous,
+  the languages it answers in, and the date the number was last checked.
+- **The emergency number is not in the data.** Every country has one and
+  it is the first thing a person in a crisis needs, so it stays a small
+  table in the app - and it is the one thing in the crisis page that has
+  to be right.
+- The region picker lists the 24 countries with their flag and their name
+  in their own language.
+- Files: `scripts/import_helplines.py`, `core_model/.../Models.kt`,
+  `core_model/.../CrisisCatalog.kt`, `feature_crisis/CrisisScreen.kt`
+- Verify: a unit test per country that the numbers are there, the method
+  (call, text) is right, and the date is not older than a year.
+
+### Phase 4 - More languages
+
+- The strings of the app are exported as a table
+  (`scripts/export_strings.py`), translated, and imported back
+  (`scripts/import_strings.py`) into the five modules. Doing it by hand in
+  five XML files per language does not scale, and the export makes it
+  clear what has to be translated.
+- German first. It can be done well here, and it is the language of one
+  of the countries in the catalog.
+- The other languages want a native speaker. The crisis wording
+  especially: "Are you safe right now?" is not a sentence to have
+  translated by a machine.
+- The crisis data is already in the language of the country; the
+  descriptions of the registry are in English, so a reader gets the
+  local name and an English description. That is stated in the app.
+
+### Phase 5 - The release
+
+The same seven steps as v0.2.0: the version, the changelog, the green
+pipeline, **the update on a real phone**, the tag, the download, the
+signature.
+
+## The risks
+
+| Risk | What happens | What we do about it |
+|---|---|---|
+| A wrong crisis number | Someone in a crisis calls a number that does not help. | The data comes from a verified registry with a date, the date is shown in the app, and the emergency number - the one number that is not in the registry - is a small table that is reviewed by a human. |
+| The registry is not updated any more | The numbers get older. | The app shows the date the number was last checked. A check in the pipeline reports how old the data is. |
+| A link opens something unexpected | An address with a scheme the app does not know makes the system do something. | Only `http` and `https` are accepted, everything else is refused with a message. |
+| The clipboard holds something private | A password or a secret ends up in the journal. | The clipboard is only read when the button is tapped, and the app never reads it on its own. |
+| A translation is wrong | A person in a low mood reads something that does not help. | The interface is translated by native speakers, and the crisis wording is reviewed by a human before it ships. |
+| The toolbar gets crowded again | The buttons do not fit on a small phone. | The capture actions and the view actions are separated. |
+
+## The open questions
+
+1. **Which languages?** German is the one that can be done well here. Which
+   others do the people who use the app speak? Is there someone who can
+   check the translations - especially the crisis wording?
+2. **The clipboard: pictures too?** A screenshot is the most likely thing
+   on a clipboard. It is also the most private. Both are reasonable, and
+   the answer is one line of code.
+3. **The emergency numbers.** They are the one thing in the crisis page
+   that the registry does not have. They are stable facts, but they have
+   to be right - shall I write them out for the 24 countries and you
+   check them?
+4. **The links: open them in the browser?** The app has no internet
+   permission, so it cannot show what the page says. The alternative is to
+   store the link and never open it, which seems pointless.
