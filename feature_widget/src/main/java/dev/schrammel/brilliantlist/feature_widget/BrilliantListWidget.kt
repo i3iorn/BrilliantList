@@ -1,29 +1,33 @@
 package dev.schrammel.brilliantlist.feature_widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
 import androidx.glance.layout.Column
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
+import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import dev.schrammel.brilliantlist.core_data.database.DatabaseKeyManager
 import dev.schrammel.brilliantlist.core_data.repository.EntryRepository
 import dev.schrammel.brilliantlist.core_data.repository.SettingsRepository
 import dev.schrammel.brilliantlist.core_model.EntryType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 /**
  * Hilt entry point so the Glance receiver can reach the SingletonComponent graph
@@ -34,24 +38,70 @@ import java.util.concurrent.TimeUnit
 interface WidgetEntryPoint {
     fun entryRepository(): EntryRepository
     fun settingsRepository(): SettingsRepository
+    fun databaseKeyManager(): DatabaseKeyManager
 }
 
 class BrilliantListWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // Rotation engine: pick one entry (data must be fetched BEFORE provideContent,
-        // whose lambda is not a coroutine scope).
-        val repo = EntryPointAccessors.fromApplication(
+        val entryPoint = EntryPointAccessors.fromApplication(
             context.applicationContext, WidgetEntryPoint::class.java
-        ).entryRepository()
-        val entry = repo.randomByType(EntryType.TEXT)
-            // Fallback must also be a TEXT entry: image/audio entries have null
-            // textContent and would render the misleading placeholder message.
-            ?: repo.observeEntries().first().firstOrNull { !it.isDeleted && it.type == EntryType.TEXT }
+        )
+
+        // The user can hide the entry text on the home screen. When the
+        // setting cannot be read the text stays hidden: a journal entry on
+        // the home screen is a privacy risk, not a feature.
+        val showContent = runCatching {
+            entryPoint.settingsRepository().settings.first().widgetShowContent
+        }.getOrDefault(false)
+
+        // The database can only be opened while the device is unlocked.
+        val deviceUnlocked = runCatching {
+            entryPoint.databaseKeyManager().isAvailable()
+        }.getOrDefault(false)
+
+        var failed = false
+        val entry = if (showContent && deviceUnlocked) {
+            try {
+                val repo = entryPoint.entryRepository()
+                // Rotation engine: pick one entry (data must be fetched BEFORE provideContent,
+                // whose lambda is not a coroutine scope).
+                repo.randomByType(EntryType.TEXT)
+                    // Fallback must also be a TEXT entry: image/audio entries have null
+                    // textContent and would render the misleading placeholder message.
+                    ?: repo.firstOfType(EntryType.TEXT)
+            } catch (e: Exception) {
+                // The database could not be opened (locked device, corrupted key).
+                failed = true
+                null
+            }
+        } else {
+            null
+        }
+
+        // Tapping the widget opens the app (see README: "tap to open the app").
+        // The activity is addressed by name because feature_widget cannot depend
+        // on the :app module without creating a dependency cycle.
+        val openApp = actionStartActivity(
+            Intent().setClassName(context, context.packageName + ".MainActivity")
+        )
+
+        val text = when {
+            !deviceUnlocked || failed -> context.getString(R.string.widget_locked)
+            !showContent -> context.getString(R.string.widget_hidden)
+            entry != null -> entry.textContent.orEmpty()
+            else -> context.getString(R.string.widget_empty)
+        }
 
         provideContent {
-            Column(modifier = GlanceModifier.fillMaxSize().padding(16.dp)) {
+            Column(
+                modifier = GlanceModifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .clickable(openApp)
+            ) {
                 Text(
-                    text = entry?.textContent ?: "Add your first brilliant thing"
+                    text = text,
+                    style = TextStyle(color = ColorProvider(R.color.widget_text))
                 )
             }
         }
@@ -77,26 +127,9 @@ class BrilliantListWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 
     private fun scheduleRotation(context: Context) {
-        val appContext = context.applicationContext
-        val settingsRepository = EntryPointAccessors.fromApplication(
-            appContext, WidgetEntryPoint::class.java
-        ).settingsRepository()
-
-        // Interval is read asynchronously; the worker also re-checks it each run.
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-            val minutes = settingsRepository.settings.first().rotationIntervalMinutes
-                .coerceAtLeast(MIN_PERIOD_MINUTES)
-            WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
-                WidgetRotationWorker.WORK_NAME,
-                ExistingPeriodicWorkPolicy.UPDATE,
-                PeriodicWorkRequestBuilder<WidgetRotationWorker>(minutes.toLong(), TimeUnit.MINUTES)
-                    .build()
-            )
+        // The interval is read asynchronously; the worker also re-checks it each run.
+        CoroutineScope(Dispatchers.Default).launch {
+            WidgetRotationScheduler.schedule(context)
         }
-    }
-
-    private companion object {
-        // WorkManager's minimum periodic interval is 15 minutes.
-        const val MIN_PERIOD_MINUTES = 15
     }
 }

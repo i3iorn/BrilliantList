@@ -1,0 +1,5 @@
+<resources>
+    <string name="widget_empty">Add your first brilliant thing</string>
+    <string name="widget_hidden">Open Brilliant List to see your entry</string>
+    <string name="widget_locked">Unlock your device to see your entry</string>
+</resources>

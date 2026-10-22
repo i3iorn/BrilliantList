@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Night variant is in values-night/colors.xml so the widget stays readable
+         in dark mode. -->
+    <color name="widget_text">#FF1B1B1B</color>
+</resources>
