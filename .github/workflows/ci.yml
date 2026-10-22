@@ -24,7 +24,32 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build and run unit tests
-        run: ./gradlew assembleDebug :core_model:test --stacktrace
+        run: ./gradlew assembleDebug :core_model:test :core_data:testDebugUnitTest :feature_entry:testDebugUnitTest --stacktrace
+
+      # A throwaway key, so the release build (with the code shrinking of R8)
+      # is part of every build. The real key is only used to publish.
+      - name: Create a throwaway release key
+        run: |
+          keytool -genkeypair -v -keystore release-ci.keystore -alias release \
+            -keyalg RSA -keysize 2048 -validity 30 \
+            -storepass ci-release -keypass ci-release \
+            -dname "CN=BrilliantList CI, OU=CI, O=BrilliantList, C=DE"
+
+      - name: Build the release APK
+        run: >-
+          ./gradlew assembleRelease
+          -PRELEASE_STORE_FILE=release-ci.keystore
+          -PRELEASE_STORE_PASSWORD=ci-release
+          -PRELEASE_KEY_ALIAS=release
+          -PRELEASE_KEY_PASSWORD=ci-release
+          --stacktrace
+
+      # Guards the invariants that are easy to break silently: the app must
+      # not be able to reach the network, its native libraries must work on
+      # 16 KB page size devices, and the build that ships must not be signed
+      # with the public debug key.
+      - name: Verify privacy invariants
+        run: python3 scripts/verify_privacy_invariants.py
 
       - name: Upload unit test results
         if: always()
@@ -34,4 +59,49 @@ jobs:
           path: |
             **/build/test-results/testDebugUnitTest/*.xml
             **/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
+
+  # The instrumented tests need the AndroidKeyStore, SQLCipher and a real
+  # screen, so they run on a managed device (an emulator without any hardware).
+  # They are the ones that catch the regressions a unit test cannot see: the
+  # accessibility checks, the key rotation and the backup round trip.
+  instrumented:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # The managed device is an emulator, it needs the virtualisation of the
+      # runner.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the instrumented tests
+        run: >-
+          ./gradlew
+          :app:pixel2api33DebugAndroidTest
+          :core_data:pixel2api33DebugAndroidTest
+          :core_encryption:pixel2api33DebugAndroidTest
+          :feature_entry:pixel2api33DebugAndroidTest
+          --max-workers=2 --stacktrace
+
+      - name: Upload the instrumented test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-test-results
+          path: |
+            **/build/outputs/androidTest-results/**
+            **/build/reports/androidTests/**
           if-no-files-found: ignore

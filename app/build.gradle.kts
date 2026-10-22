@@ -22,13 +22,46 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        // A release key is configured through the gradle properties, so the
+        // keystore never ends up in the repository:
+        //   RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS,
+        //   RELEASE_KEY_PASSWORD
+        create("release") {
+            val storeFilePath = providers.gradleProperty("RELEASE_STORE_FILE").orNull
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = providers.gradleProperty("RELEASE_STORE_PASSWORD").orNull
+                keyAlias = providers.gradleProperty("RELEASE_KEY_ALIAS").orNull
+                keyPassword = providers.gradleProperty("RELEASE_KEY_PASSWORD").orNull
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // The app has no reflection heavy code, so shrinking it removes
+            // code that is never called.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Without a configured release key the build is signed with the
+            // debug key, so it can be installed and tested. A build that is
+            // made in CI has to use a real key: the debug key is public.
+            signingConfig = if (providers.gradleProperty("RELEASE_STORE_FILE").isPresent) {
+                signingConfigs.getByName("release")
+            } else if (providers.environmentVariable("CI").isPresent) {
+                throw GradleException(
+                    "A release build in CI needs a release key. Set " +
+                        "RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, " +
+                        "RELEASE_KEY_ALIAS and RELEASE_KEY_PASSWORD."
+                )
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
     compileOptions {
@@ -37,6 +70,21 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    testOptions {
+        // A managed device runs the instrumented tests without any hardware.
+        // The accessibility checks and the crypto tests are the ones that
+        // catch the regressions a unit test cannot see, so they belong into
+        // the build.
+        managedDevices {
+            allDevices {
+                create<com.android.build.api.dsl.ManagedVirtualDevice>("pixel2api33") {
+                    device = "Pixel 2"
+                    apiLevel = 33
+                    systemImageSource = "aosp"
+                }
+            }
+        }
     }
 }
 

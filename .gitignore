@@ -7,6 +7,7 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/deviceManager.xml
 .DS_Store
 /build
 **/build
@@ -14,3 +15,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+__pycache__/
+*.pyc
