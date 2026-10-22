@@ -22,8 +22,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -33,6 +36,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +52,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
@@ -84,6 +90,7 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+    val captureFocus = remember { FocusRequester() }
 
     var showSearch by remember { mutableStateOf(false) }
     var showTrash by remember { mutableStateOf(false) }
@@ -91,6 +98,7 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
     var editingEntry by remember { mutableStateOf<Entry?>(null) }
     val recorder = remember { AudioRecorder(context) }
     var pendingSink by remember { mutableStateOf<MediaSink?>(null) }
+    var showEmptyTrashDialog by remember { mutableStateOf(false) }
 
     val copiedMessage = stringResource(R.string.entry_copied)
     val audioErrorMessage = stringResource(R.string.entry_error_audio)
@@ -205,13 +213,15 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                 // The capture field: one step, no dialog.
                 OutlinedTextField(
                     value = captureText,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(captureFocus),
                     onValueChange = { captureText = it },
                     label = { Text(stringResource(R.string.entry_capture_label)) },
                     placeholder = { Text(stringResource(R.string.entry_capture_hint)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { saveCapture() }),
-                    modifier = Modifier.fillMaxWidth()
+                    keyboardActions = KeyboardActions(onDone = { saveCapture() })
                 )
             }
 
@@ -303,6 +313,16 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
             )
 
             if (showTrash) {
+                if (deletedEntries.isNotEmpty()) {
+                    // The trash can be emptied: the entries and their media
+                    // are gone for good, so it asks first.
+                    TextButton(
+                        onClick = { showEmptyTrashDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.entry_empty_trash_action))
+                    }
+                }
                 EntryList(
                     entries = deletedEntries,
                     favoritesOnly = false,
@@ -329,6 +349,7 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                     onToggleFavorite = viewModel::toggleFavorite,
                     onEdit = { editingEntry = it },
                     onMove = viewModel::moveEntry,
+                    onAdd = { captureFocus.requestFocus() },
                     emptyText = if (query.isNotEmpty()) {
                         stringResource(R.string.entry_empty_search)
                     } else if (favoritesOnly) {
@@ -351,30 +372,36 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                 editingEntry = null
             },
             onCopy = { text ->
-                copyToClipboard(context, text)
+                viewModel.copyToClipboard(text)
                 scope.launch { snackbarHostState.showSnackbar(copiedMessage) }
+            }
+        )
+    }
+
+    if (showEmptyTrashDialog) {
+        AlertDialog(
+            onDismissRequest = { showEmptyTrashDialog = false },
+            title = { Text(stringResource(R.string.entry_empty_trash_title)) },
+            text = { Text(stringResource(R.string.entry_empty_trash_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showEmptyTrashDialog = false
+                        viewModel.emptyTrash()
+                    }
+                ) {
+                    Text(stringResource(R.string.entry_empty_trash_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEmptyTrashDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
 }
 
-/**
- * Copies text to the clipboard.
- *
- * The clipboard is shared with every app on the device, so the entry is
- * marked as sensitive: the clipboard preview is hidden on Android 13 and
- * later.
- */
-private fun copyToClipboard(context: android.content.Context, text: String) {
-    val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
-    val clip = android.content.ClipData.newPlainText("BrilliantList", text)
-    if (android.os.Build.VERSION.SDK_INT >= 33) {
-        clip.description.extras = android.os.PersistableBundle().apply {
-            putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
-        }
-    }
-    clipboard.setPrimaryClip(clip)
-}
 
 /**
  * The capture toolbar.

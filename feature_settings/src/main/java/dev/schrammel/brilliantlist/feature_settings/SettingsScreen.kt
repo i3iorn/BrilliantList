@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
+import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import dev.schrammel.brilliantlist.core_model.CrisisCatalog
 import dev.schrammel.brilliantlist.core_model.CrisisRegion
 import dev.schrammel.brilliantlist.core_model.JournalStats
@@ -221,6 +222,24 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::onAppLockChange
             )
 
+            if (deviceSecure) {
+                // How long the journal stays unlocked after the app was in
+                // the background.
+                Text(
+                    text = stringResource(R.string.settings_app_lock_delay),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppLockDelay.entries.forEach { option ->
+                        FilterChip(
+                            selected = settings.appLockDelay == option,
+                            onClick = { viewModel.onAppLockDelayChange(option) },
+                            label = { Text(stringResource(option.label())) }
+                        )
+                    }
+                }
+            }
+
             ActionRow(
                 title = stringResource(R.string.settings_export),
                 summary = stringResource(R.string.settings_export_summary),
@@ -248,6 +267,11 @@ fun SettingsScreen(
 
             Text(
                 text = stringResource(R.string.settings_stored_text),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.settings_stored_photos),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -671,6 +695,14 @@ private fun LinkRow(title: String, value: String, url: String) {
             color = MaterialTheme.colorScheme.primary
         )
     }
+}
+
+/** The label of the time the app lock waits. */
+private fun AppLockDelay.label(): Int = when (this) {
+    AppLockDelay.THIRTY_SECONDS -> R.string.settings_lock_delay_30s
+    AppLockDelay.ONE_MINUTE -> R.string.settings_lock_delay_1m
+    AppLockDelay.FIVE_MINUTES -> R.string.settings_lock_delay_5m
+    AppLockDelay.UNTIL_CLOSED -> R.string.settings_lock_delay_closed
 }
 
 /** A size in the unit a person would use. */

@@ -1,6 +1,11 @@
 package dev.schrammel.brilliantlist.feature_entry
 
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,6 +29,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -212,12 +218,49 @@ class EntryViewModel @Inject constructor(
     }
 
     /**
+     * Copies the text to the clipboard and clears it again after a minute.
+     *
+     * The clipboard of the system is shared with every app on the device, so
+     * the text of an entry should not sit there for hours. The clipboard is
+     * only cleared if it still holds this text - a copy of something else is
+     * not ours to clear.
+     */
+    fun copyToClipboard(text: String) {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        val clip = ClipData.newPlainText(CLIPBOARD_LABEL, text)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = PersistableBundle().apply {
+                // The clipboard preview is hidden, so the text does not show
+                // up on the screen of the person.
+                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+            }
+        }
+        clipboard.setPrimaryClip(clip)
+
+        viewModelScope.launch {
+            delay(CLIPBOARD_CLEAR_DELAY)
+            val current = runCatching {
+                clipboard.primaryClip?.getItemAt(0)?.text?.toString()
+            }.getOrNull()
+            if (current == text) {
+                clipboard.clearPrimaryClip()
+            }
+        }
+    }
+
+    /**
      * Moves an entry within the list. Indices refer to the active (non deleted)
      * entries; the repository rewrites the positions of exactly that list.
      */
     private companion object {
         /** The delay of the search, in milliseconds. */
         const val SEARCH_DEBOUNCE_MILLIS = 250L
+
+        /** The label of the clipboard entry, so it can be recognised. */
+        const val CLIPBOARD_LABEL = "BrilliantList"
+
+        /** How long the text stays on the clipboard, in milliseconds. */
+        const val CLIPBOARD_CLEAR_DELAY = 60_000L
     }
     fun moveEntry(from: Int, to: Int) {
         viewModelScope.launch {

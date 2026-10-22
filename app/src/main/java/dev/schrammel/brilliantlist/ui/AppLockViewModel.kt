@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.schrammel.brilliantlist.core_data.repository.SettingsRepository
+import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +56,14 @@ class AppLockViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /**
+     * How long the journal stays unlocked after the app was in the
+     * background.
+     */
+    val delay: StateFlow<AppLockDelay> = settingsRepository.settings
+        .map { it.appLockDelay }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AppLockDelay.THIRTY_SECONDS)
+
+    /**
      * True when the device can ask the user for their screen lock.
      *
      * It is checked again when the app comes back to the foreground: the
@@ -93,13 +102,20 @@ class AppLockViewModel @Inject constructor(
      * The app came back to the foreground.
      *
      * The lock only kicks in after a moment in the background, so switching
-     * to another app for a second does not ask again.
+     * to another app for a second does not ask again. How long that moment
+     * is, the user decides.
      */
     fun onResumed() {
         // The user can set up a screen lock while the app was closed.
         _available.value = canAuthenticate(context)
+        val seconds = delay.value.seconds
+        if (seconds < 0) {
+            // The journal stays unlocked until the app is closed.
+            backgroundedAt = 0
+            return
+        }
         if (backgroundedAt > 0 &&
-            System.currentTimeMillis() - backgroundedAt > LOCK_GRACE_MILLIS
+            System.currentTimeMillis() - backgroundedAt > seconds * 1000L
         ) {
             lock()
         }
@@ -119,7 +135,7 @@ class AppLockViewModel @Inject constructor(
     }
 
     private companion object {
-        /** How long the app may stay in the background before it locks again. */
+        /** The lock is asked for again after this many seconds by default. */
         const val LOCK_GRACE_MILLIS = 30_000L
     }
 }

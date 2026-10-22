@@ -21,7 +21,7 @@
     <!-- The app lock. -->
     <string name="settings_app_lock">Lock the app</string>
     <string name="settings_app_lock_summary">Ask for your screen lock before the journal opens.</string>
-    <string name="settings_app_lock_unavailable">This device has no screen lock. Set one up in the system settings to use the app lock.</string>
+    <string name="settings_app_lock_delay">Ask again after</string>`n    <string name="settings_lock_delay_30s">30 s</string>`n    <string name="settings_lock_delay_1m">1 min</string>`n    <string name="settings_lock_delay_5m">5 min</string>`n    <string name="settings_lock_delay_closed">Never</string>`n    <string name="settings_app_lock_unavailable">This device has no screen lock. Set one up in the system settings to use the app lock.</string>
     <!-- The backup. -->
     <string name="settings_export">Export entries</string>
     <string name="settings_export_summary">Save an encrypted copy of your journal to a file.</string>
@@ -39,7 +39,7 @@
     <string name="settings_passphrase_fair">fair</string>
     <string name="settings_passphrase_strong">strong</string>
     <string name="settings_passphrase_too_short">The passphrase needs at least 8 characters.</string>
-    <string name="settings_export_done">The export was written</string>
+    <string name="settings_export_done">%1$d entries written</string>
     <string name="settings_export_failed">The export could not be written</string>
     <string name="settings_import_done">%1$d entries imported</string>
     <string name="settings_import_failed">The file could not be read. Is the passphrase correct?</string>
@@ -53,6 +53,7 @@
     <string name="settings_erase_done">Everything was erased</string>
     <!-- What the app stores. -->
     <string name="settings_stored_text">Your entries, photos and recordings are encrypted with a key that never leaves this device. Nothing is sent anywhere.</string>
+    <string name="settings_stored_photos">A photo in HEIC keeps the place it was taken. The photos you add through the picker do not.</string>
     <string name="settings_stored_stats">%1$d entries · %2$s on this device</string>
     <string name="settings_stored_stats_unknown">Reading the size of the journal…</string>
     <!-- About. -->

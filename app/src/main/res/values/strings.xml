@@ -11,6 +11,6 @@
     <string name="app_lock_title">BrilliantList is locked</string>
     <string name="app_lock_message">Your journal stays closed until you unlock it.</string>
     <string name="app_lock_unlock">Unlock</string>
-    <string name="app_key_lost_title">The encryption key is gone</string>`n    <string name="app_key_lost_message">The key that protects your entries is not on this device any more, so they cannot be opened. You can start over with an empty journal.</string>`n    <string name="app_key_lost_action">Start over</string>`n    <string name="app_lock_prompt_title">Unlock BrilliantList</string>
+    <string name="app_key_lost_title">The encryption key is gone</string>`n    <string name="app_key_lost_message">The key that protects your entries is not on this device any more, so they cannot be opened. You can start over with an empty journal.</string>`n    <string name="app_key_lost_action">Start over</string>`n    <string name="action_cancel">Cancel</string>`n    <string name="app_key_lost_confirm">Starting over deletes the journal. The entries cannot be recovered, because the key that protects them is gone.</string>`n    <string name="app_lock_prompt_title">Unlock BrilliantList</string>
     <string name="app_lock_prompt_subtitle">Your journal is encrypted and stays closed.</string>
 </resources>

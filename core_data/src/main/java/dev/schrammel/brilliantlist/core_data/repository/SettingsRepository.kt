@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import dev.schrammel.brilliantlist.core_model.CrisisRegion
 import dev.schrammel.brilliantlist.core_model.RotationMode
 import dev.schrammel.brilliantlist.core_model.Settings
@@ -39,6 +40,7 @@ class SettingsRepository @Inject constructor(
         val WIDGET_SHOW_CONTENT = booleanPreferencesKey("widget_show_content")
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         val GROUP_BY_DAY = booleanPreferencesKey("group_by_day")
+        val APP_LOCK_DELAY = stringPreferencesKey("app_lock_delay")
     }
 
     val settings: Flow<Settings> = context.settingsStore.data.map { prefs ->
@@ -53,7 +55,10 @@ class SettingsRepository @Inject constructor(
             // screen until the user asks for it.
             widgetShowContent = prefs[Keys.WIDGET_SHOW_CONTENT] ?: false,
             appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: true,
-            groupByDay = prefs[Keys.GROUP_BY_DAY] ?: true
+            groupByDay = prefs[Keys.GROUP_BY_DAY] ?: true,
+            appLockDelay = prefs[Keys.APP_LOCK_DELAY]?.let { name ->
+                AppLockDelay.entries.firstOrNull { it.name == name }
+            } ?: AppLockDelay.THIRTY_SECONDS
         )
     }
 
@@ -87,5 +92,9 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setGroupByDay(enabled: Boolean) {
         context.settingsStore.edit { it[Keys.GROUP_BY_DAY] = enabled }
+    }
+
+    suspend fun setAppLockDelay(delay: AppLockDelay) {
+        context.settingsStore.edit { it[Keys.APP_LOCK_DELAY] = delay.name }
     }
 }

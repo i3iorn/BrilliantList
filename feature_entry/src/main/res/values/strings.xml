@@ -3,7 +3,6 @@
          takes one step instead of a dialog. -->
     <string name="entry_capture_label">Your brilliant thing</string>
     <string name="entry_capture_hint">Capture a brilliant thing…</string>
-    <string name="entry_capture_action">Save entry</string>
     <!-- The search. -->
     <string name="entry_search">Search</string>
     <string name="entry_search_hint">Search your entries</string>
@@ -17,7 +16,7 @@
     <!-- The trash. -->
     <string name="entry_show_trash">Recently deleted</string>
     <string name="entry_show_entries">Back to entries</string>
-    <string name="entry_empty_trash">Nothing was deleted.</string>
+    <string name="entry_empty_trash">Nothing was deleted.</string>`n    <string name="entry_empty_trash_action">Empty the trash</string>`n    <string name="entry_empty_trash_title">Empty the trash?</string>`n    <string name="entry_empty_trash_text">The deleted entries and their photos and recordings are deleted for good. This cannot be undone.</string>
     <string name="entry_trash_empty_action">Empty the trash</string>
     <!-- The recording. -->
     <string name="entry_recording">Recording %1$s</string>`n    <string name="entry_recording_running">Recording %1$s � %2$s left</string>`n    <string name="entry_recording_limit">The recording was cut off, it reached the maximum length.</string>

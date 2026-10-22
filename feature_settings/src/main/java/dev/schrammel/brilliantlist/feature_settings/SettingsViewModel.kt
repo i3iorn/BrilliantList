@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.schrammel.brilliantlist.core_data.repository.EntryRepository
 import dev.schrammel.brilliantlist.core_data.repository.SettingsRepository
+import dev.schrammel.brilliantlist.core_model.AppLockDelay
 import dev.schrammel.brilliantlist.core_model.CrisisRegion
 import dev.schrammel.brilliantlist.core_model.JournalStats
 import dev.schrammel.brilliantlist.core_model.RotationMode
@@ -98,6 +99,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setGroupByDay(enabled) }
     }
 
+    fun onAppLockDelayChange(delay: AppLockDelay) {
+        viewModelScope.launch { settingsRepository.setAppLockDelay(delay) }
+    }
+
     /**
      * Writes an encrypted export of the journal to [uri].
      *
@@ -106,22 +111,21 @@ class SettingsViewModel @Inject constructor(
      */
     fun exportJournal(uri: Uri, passphrase: CharArray) {
         viewModelScope.launch {
-            val message = withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver.openOutputStream(uri)?.use { output ->
-                        entryRepository.exportTo(output, passphrase)
-                    } ?: error("the file could not be opened")
-                }
+            // The file is read back afterwards: a backup that cannot be read
+            // is worse than no backup, because it gives the feeling of safety.
+            val count = withContext(Dispatchers.IO) {
+                runCatching { entryRepository.exportTo(uri, passphrase) }.getOrDefault(-1)
             }
             passphrase.fill('\u0000')
             _events.tryEmit(
                 SettingsEvent.Message(
                     context.getString(
-                        if (message.isSuccess) {
+                        if (count >= 0) {
                             R.string.settings_export_done
                         } else {
                             R.string.settings_export_failed
-                        }
+                        },
+                        count
                     )
                 )
             )

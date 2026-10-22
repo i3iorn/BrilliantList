@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -57,7 +58,8 @@ fun EntryList(
     inTrash: Boolean = false,
     onRestore: ((Entry) -> Unit)? = null,
     emptyText: String? = null,
-    groupByDay: Boolean = true
+    groupByDay: Boolean = true,
+    onAdd: (() -> Unit)? = null
 ) {
     // The trash shows the deleted entries, everywhere else they are hidden.
     val active = if (inTrash) entries else entries.filterNot { it.isDeleted }
@@ -68,6 +70,7 @@ fun EntryList(
             text = emptyText ?: stringResource(
                 if (favoritesOnly) R.string.entry_empty_favorites else R.string.entry_empty
             ),
+            onAdd = onAdd,
             modifier = modifier
         )
         return
@@ -226,17 +229,27 @@ internal fun dayStarts(
 }
 
 @Composable
-private fun EmptyEntries(text: String, modifier: Modifier = Modifier) {
-    Box(
+private fun EmptyEntries(text: String, onAdd: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+    Column(
         modifier = modifier
             .fillMaxSize()
             .padding(24.dp),
-        contentAlignment = Alignment.Center
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge
         )
+        if (onAdd != null) {
+            // The screen says what to do, so it can also do it.
+            TextButton(
+                onClick = onAdd,
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                Text(stringResource(R.string.entry_empty_action))
+            }
+        }
     }
 }
 

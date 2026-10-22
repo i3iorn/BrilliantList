@@ -26,6 +26,27 @@ is built, and the tag of a release has to match it.
 - The search says how much it found.
 - The search lets go of the keyboard, so it stops covering the list.
 - The recording shows the time that is left before it stops.
+
+### The trash
+- The trash can be emptied. It asks first, because the entries and their
+  photos and recordings are gone for good.
+
+### The backup
+- The export is read back after it is written: a backup that cannot be read is
+  worse than no backup, because it gives the feeling of safety.
+- The export says how many entries it wrote.
+
+### The lock and the clipboard
+- How long the journal stays unlocked after the app was in the background is a
+  setting: 30 seconds, a minute, five minutes, or until the app is closed.
+- The clipboard is cleared a minute after a copy, so the text of an entry does
+  not sit there for hours.
+- "Start over" asks before it deletes the journal.
+
+### The cleanups
+- The empty state has an "Add an entry" button, so the screen that says what
+  to do can also do it.
+- The app says that a photo in HEIC keeps the place it was taken.
 - The trash is a separate place: the capture actions are switched off there.
 - "Empty the trash".
 

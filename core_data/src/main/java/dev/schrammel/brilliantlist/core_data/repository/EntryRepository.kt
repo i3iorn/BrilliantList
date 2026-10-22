@@ -1,6 +1,7 @@
 package dev.schrammel.brilliantlist.core_data.repository
 
 import android.content.Context
+import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.room.withTransaction
 import dev.schrammel.brilliantlist.core_data.backup.BackupContainer
@@ -253,6 +254,42 @@ class EntryRepository @Inject constructor(
         }
         BackupContainer.write(output, passphrase, sources)
         sources.size
+    }
+
+    /**
+     * Writes the journal into [uri] and reads the file back.
+     *
+     * A backup that cannot be read is worse than no backup: it gives the
+     * feeling of safety. The file is read, not written again, so the check
+     * costs one decryption.
+     *
+     * @return the number of entries in the file, or -1 when the file could
+     * not be read back.
+     */
+    suspend fun exportTo(uri: Uri, passphrase: CharArray): Int = withContext(Dispatchers.IO) {
+        // The export clears the passphrase it is given, so the check gets a
+        // copy of its own.
+        val forWriting = passphrase.copyOf()
+        val written = runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { output ->
+                exportTo(output, forWriting)
+            } ?: error("the file could not be opened")
+        }.getOrElse {
+            forWriting.fill('\u0000')
+            return@withContext -1
+        }
+
+        val forReading = passphrase.copyOf()
+        val read = runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                var count = 0
+                BackupContainer.read(input, forReading) { _, _ -> count++ }
+                count
+            } ?: error("the file could not be read")
+        }.getOrDefault(-1)
+        forReading.fill('\u0000')
+
+        if (read == written) written else -1
     }
 
     /**

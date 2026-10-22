@@ -198,14 +198,14 @@ shows the elapsed time and the time that is left.
 
 ---
 
-## Phase 3 — The trash
+## Phase 3 — The trash (done)
 
 ### 3.1 The trash is a separate place (done)
 
 The capture field and the capture buttons are hidden while the trash is open,
 so a photo cannot be added into a list the user is not looking at.
 
-### 3.2 "Empty the trash"
+### 3.2 "Empty the trash" (done)
 
 `EntryViewModel.emptyTrash()` exists and no button reaches it - either the
 button comes or the function goes. The button comes: it is in the trash view,
@@ -217,9 +217,9 @@ deletes the entries and their media at once.
 
 ---
 
-## Phase 4 — The backup is honest
+## Phase 4 — The backup is honest (done)
 
-### 4.1 The export checks itself
+### 4.1 The export checks itself (done)
 
 A backup that is broken is worse than no backup, because it gives the feeling
 of safety. Today the export says "the export was written" - it does not say
@@ -231,16 +231,16 @@ back.
 - The file is read, not written again, so the check costs one decryption.
 - If the check fails, the export is reported as broken instead of as done.
 
-### 4.2 The export says what it wrote
+### 4.2 The export says what it wrote (done)
 
 "23 entries written" instead of "the export was written". The import already
 says how many entries it restored.
 
 ---
 
-## Phase 5 — The lock and the clipboard
+## Phase 5 — The lock and the clipboard (done)
 
-### 5.1 The time until the app locks again is a setting
+### 5.1 The time until the app locks again is a setting (done)
 
 30 seconds is a constant today. The user chooses: 30 seconds, a minute, five
 minutes, or only when the app is closed.
@@ -252,20 +252,20 @@ minutes, or only when the app is closed.
   constant. `UNTIL_CLOSED` means the journal stays unlocked while the app is
   open - it locks again when the app is closed, which is the default anyway.
 
-### 5.2 The clipboard is cleared
+### 5.2 The clipboard is cleared (done)
 
 The text of an entry should not sit in the clipboard of the system for hours.
 A minute after the copy, the clipboard is cleared - but only if it still holds
 the text that was copied, so a copy of something else is not touched.
 
-### 5.3 "Start over" asks first
+### 5.3 "Start over" asks first (done)
 
 The screen for a lost encryption key deletes the journal. That deserves a
 question first.
 
 ---
 
-## Phase 6 — The cleanups
+## Phase 6 — The cleanups (done)
 
 | Item | Size | Note |
 |---|---|---|

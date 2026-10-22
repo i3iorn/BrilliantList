@@ -69,7 +69,12 @@ data class Settings(
      * The lock is only effective on devices that can authenticate at all; the
      * settings screen says so when it cannot be enabled.
      */
-    val appLockEnabled: Boolean = true
+    val appLockEnabled: Boolean = true,
+    /**
+     * How long the journal stays unlocked after the app was in the
+     * background.
+     */
+    val appLockDelay: AppLockDelay = AppLockDelay.THIRTY_SECONDS,
 )
 
 enum class RotationMode {
@@ -84,6 +89,21 @@ enum class RotationMode {
  */
 enum class SortMode {
     MANUAL, NEWEST_FIRST
+}
+
+/**
+ * How long the journal stays unlocked after the app was in the background.
+ *
+ * The app lock asks for the screen lock of the device. How long it waits
+ * before it asks again is the choice of the person who uses it.
+ */
+enum class AppLockDelay(val seconds: Int) {
+    THIRTY_SECONDS(30),
+    ONE_MINUTE(60),
+    FIVE_MINUTES(300),
+
+    /** The journal stays unlocked until the app is closed. */
+    UNTIL_CLOSED(-1)
 }
 
 /**
