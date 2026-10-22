@@ -18,17 +18,27 @@ Package root: `dev.schrammel.brilliantlist`. Product rules live in `README.md`, 
 ./gradlew :core_encryption:connectedDebugAndroidTest
 ./gradlew :feature_entry:connectedDebugAndroidTest
 ./gradlew :app:connectedDebugAndroidTest   # includes the accessibility checks
-./gradlew :app:pixel2api33DebugAndroidTest  # the same tests on a managed device (no hardware needed)
 python3 scripts/verify_privacy_invariants.py          # CI guard, run after assembleDebug
 ```
 
-- CI (`.github/workflows/ci.yml`, JDK 21) runs `assembleDebug :core_model:test :core_data:testDebugUnitTest :feature_entry:testDebugUnitTest` and then `scripts/verify_privacy_invariants.py`. A second job runs the instrumented tests on a **managed device** (`pixel2api33`), so the accessibility, crypto and backup tests are part of the build.
+- CI (`.github/workflows/ci.yml`, JDK 21) runs `assembleDebug :core_model:test :core_data:testDebugUnitTest :feature_entry:testDebugUnitTest`, builds the **signed** release APK and then `scripts/verify_privacy_invariants.py`. A second job runs the instrumented tests on an emulator, so the accessibility, crypto and backup tests are part of the build.
+- The instrumented job needs three things that are easy to forget: **disk** (the emulator wants seven gigabytes for the user data partition, so the runner frees the NDK and the old platforms first), a **screen lock** (the keystore cannot create a key that is bound to the unlocked device without one, so the emulator gets a pin) and the **full system image** (the image for automated tests has no keystore that can do that).
 - `lint` needs network on first run: its classpath pulls the JVM/desktop variants of the KMP artifacts (`datastore-preferences-jvm`, `material-icons-core-desktop`) which are not in the local cache. It fails offline **on a pristine checkout too** — not a code problem.
 - **Instrumented vs JVM**: anything touching `AndroidKeyStore`, SQLCipher or `MediaPlayer` must stay in `src/androidTest` (device required). Pure logic belongs in `core_model` (a plain JVM module) so it can be unit tested — the crisis catalog and the drag-reorder math live there for exactly that reason.
 - Toolchain: Gradle 9.4.1, AGP 9.2.0, Kotlin 2.2.10, KSP 2.3.12, Hilt 2.60.1, compileSdk 36, JDK 21 (`jvmToolchain(21)`).
   You do **not** need JDK 21 installed: `gradle.properties` sets `org.gradle.java.installations.auto-download=true` and the foojay resolver in `settings.gradle.kts` provisions it.
 - minSdk is 33 in `:app` but 23 in every library module — don't "fix" the mismatch, it is the current state.
 - Room codegen runs through KSP (already wired) — no manual codegen step. `core_data` also runs KSP for the `androidTest` source set (`kspAndroidTest`), because the migration test declares the old schema.
+
+## Release
+
+The app is not in the Play Store, it is distributed as a signed APK.
+
+- **The key is the app.** Android only installs an update over an installed app when the signature is the same, so there is exactly one key for the whole life of the app. It is created once with `python3 scripts/create_release_key.py`, kept in `keystore/` (ignored by git) and stored in the secrets of the repository: `RELEASE_KEYSTORE_BASE64`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. **A lost key means the app can never be updated again** - everybody has to uninstall it, and the journal goes with it.
+- **A tag publishes a release.** `.github/workflows/release.yml` builds the signed APK, checks the signature and the privacy invariants and publishes the APK, its checksum and the compressed R8 mapping as a GitHub release. The download URL is then always the same: `https://github.com/i3iorn/BrilliantList/releases/latest/download/app-release.apk`.
+- **The credentials go into the environment** of the build (`ORG_GRADLE_PROJECT_...`), never onto the command line, so they cannot end up in the log of the runner.
+- **The build that ships may not be signed with the debug key.** Everybody has that key, so such a build could be replaced by anyone. `scripts/verify_privacy_invariants.py` checks the signature of the release APK and fails in CI when it is the debug one.
+- The script used to look for the APK with a glob that only ever matched the **androidTest** APK, which has no native libraries at all - the check for the 16 KB page size alignment passed without ever looking at the app.
 
 ## Modules
 
