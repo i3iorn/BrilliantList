@@ -105,7 +105,7 @@ jobs:
           # must not take over the "latest" download URL, otherwise the
           # stable app-release.apk would suddenly be a test build.
           if [[ "$TAG" == *-* ]]; then
-            PRERELEASE="--pre-release"
+            PRERELEASE="--prerelease"
           else
             PRERELEASE="--latest"
           fi
