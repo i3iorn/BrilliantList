@@ -289,6 +289,7 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             .remove(KEY_VERSION)
             .remove(KEY_ALIAS)
             .remove(AUTH_KEY_ALIAS)
+            .remove(AUTH_BOUND_PREF)
             .apply()
         cachedPassphrase = null
         CryptoManager.deleteKey(activeAlias())
@@ -364,8 +365,22 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         val newWrapAlias: String
         val newWrapKey: SecretKey
         if (authWanted()) {
-            newWrapAlias = defaultAuthAlias() + "_" + System.currentTimeMillis()
-            newWrapKey = CryptoManager.createAuthKey(newWrapAlias)
+            val alias = defaultAuthAlias() + "_" + System.currentTimeMillis()
+            val key = try {
+                CryptoManager.createAuthKey(alias)
+            } catch (e: CryptoUnavailableException) {
+                null
+            }
+            if (key != null) {
+                newWrapAlias = alias
+                newWrapKey = key
+            } else {
+                // No auth key: fall back to the plain key. The passphrase is
+                // re-wrapped either way - a failed ceremony must never abort
+                // the rotation and strand the user.
+                newWrapAlias = newMediaAlias
+                newWrapKey = newMediaKey
+            }
         } else {
             // Without the app lock the passphrase shares the media key, as it
             // did in the versions before the auth key existed.
@@ -392,16 +407,31 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
     /** Creates a key of the current policy and a fresh passphrase. */
     private fun createFreshPassphrase(): ByteArray {
         val passphrase = ByteArray(PASSPHRASE_SIZE).also { SecureRandom().nextBytes(it) }
+        val alias: String
+        val key: SecretKey
         if (authWanted()) {
-            val alias = defaultAuthAlias()
-            storePassphrase(passphrase, CryptoManager.createAuthKey(alias), alias)
+            alias = defaultAuthAlias()
+            key = try {
+                CryptoManager.createAuthKey(alias)
+            } catch (e: CryptoUnavailableException) {
+                // A device that says it can authenticate but whose keystore
+                // refuses the auth key would otherwise lock the user out
+                // forever: without a key the journal cannot be created, and
+                // the app would show the lost-key screen in an endless loop.
+                // The plain key is the fallback - it still requires the
+                // unlocked device, it just does not bind to the user.
+                CryptoManager.getOrCreateKey(
+                    CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+                )
+            }
         } else {
             // The passphrase key and the media key are separate: the media
             // key must never be recreated, it would make the existing files
             // unreadable (there is no per-file key version).
-            val alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-            storePassphrase(passphrase, CryptoManager.getOrCreateKey(alias), alias)
+            alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+            key = CryptoManager.getOrCreateKey(alias)
         }
+        storePassphrase(passphrase, key, alias)
         return passphrase
     }
 
@@ -439,8 +469,21 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             // key gets a fresh alias, so the old one survives until the new
             // ciphertext is written - a crash in between would otherwise lose
             // the database.
-            newAlias = defaultAuthAlias() + "_" + System.currentTimeMillis()
-            newKey = CryptoManager.createAuthKey(newAlias)
+            val alias = defaultAuthAlias() + "_" + System.currentTimeMillis()
+            val key = try {
+                CryptoManager.createAuthKey(alias)
+            } catch (e: CryptoUnavailableException) {
+                null
+            }
+            if (key != null) {
+                newAlias = alias
+                newKey = key
+            } else {
+                // No auth key: fall back to the plain key rather than
+                // aborting the rotation and stranding the user.
+                newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+                newKey = CryptoManager.getOrCreateKey(newAlias)
+            }
         } else {
             newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
             newKey = CryptoManager.getOrCreateKey(newAlias)
