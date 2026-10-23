@@ -101,10 +101,18 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.tag }}"
           fi
+          # A version with a suffix (for example -rc1) is a pre-release: it
+          # must not take over the "latest" download URL, otherwise the
+          # stable app-release.apk would suddenly be a test build.
+          if [[ "$TAG" == *-* ]]; then
+            PRERELEASE="--pre-release"
+          else
+            PRERELEASE="--latest"
+          fi
           gh release create "$TAG" \
             app/build/outputs/apk/release/app-release.apk \
             app/build/outputs/apk/release/app-release.apk.sha256 \
             app/build/outputs/mapping/release/mapping.txt.gz \
             --title "BrilliantList $TAG" \
             --notes-file .github/release-notes.md \
-            --latest
+            "$PRERELEASE"

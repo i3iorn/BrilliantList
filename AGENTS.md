@@ -21,7 +21,9 @@ python3 scripts/verify_privacy_invariants.py      # CI guard, run after assemble
 - The instrumented job needs three easy-to-forget things: **disk** (the emulator wants ~7 GB for the user data partition; the runner frees the NDK and old platforms first), a **screen lock** (the keystore cannot create a device-bound key without one, so the emulator gets a pin), and the **full system image** (the automated-test image has no keystore that can do it).
 - `lint` needs network on first run (KMP JVM/desktop variants are not in a pristine cache). Failing offline is not a code problem.
 - **Instrumented vs JVM**: anything touching `AndroidKeyStore`, SQLCipher, `BiometricPrompt` or `MediaPlayer` must stay in `src/androidTest` (device required). Pure logic belongs in `core_model` (plain JVM module) so it can be unit tested.
-- Toolchain: Gradle 9.4.1, AGP 9.2.0, Kotlin 2.2.10, KSP 2.3.12, Hilt 2.60.1, compileSdk 36, JDK 21 (`jvmToolchain(21)`).
+- Toolchain: Gradle 9.4.1, AGP 9.2.0, Kotlin 2.2.10, KSP 2.3.12, Hilt 2.60.1, compileSdk 36, JDK 21 (`jvmToolchain(21)`). You do not need JDK 21 installed: `gradle.properties` auto-downloads it via the foojay resolver in `settings.gradle.kts`.
+- minSdk is 33 in `:app` but 23 in every library module — don't "fix" the mismatch, it is the current state.
+- Room codegen runs through KSP (already wired) — no manual codegen step. `core_data` also runs KSP for the `androidTest` source set (`kspAndroidTest`), because the migration test declares the old schema.
 
 ## Architecture & modules
 
@@ -29,18 +31,19 @@ python3 scripts/verify_privacy_invariants.py      # CI guard, run after assemble
 
 - Every inter-module dependency is `implementation`, never `api` → types are not visible transitively. A module that touches `Entry`/`Settings` must declare its own `core_model` dependency; same for `core_data` repositories and Room types in `androidTest`.
 - Features go through `EntryRepository`/`SettingsRepository`; never add a direct `core_encryption` dependency to a feature. Use `DatabaseKeyManager.isAvailable()` to detect a locked device.
-- Icons: use material3 core icons; do NOT declare `material-icons-core` explicitly. Local vector drawables in `feature_entry/src/main/res/drawable/`.
+- Icons: use material3 core icons. Do NOT declare `material-icons-core` explicitly. Local vector drawables in `feature_entry/src/main/res/drawable/`.
 - Strings: each module needs its own `res/values/strings.xml` (R classes are non-transitive). The app is fully covered in **English** (`values/`) and **Swedish** (`values-sv/`); add both when you add a string.
 
 ## Crash-avoidance invariants
 
 - Manifest must declare `android:name=".MainApp"` (`@HiltAndroidApp`) or every `@AndroidEntryPoint` crashes.
 - Use `@ApplicationContext` on any injected `Context`.
-- `WorkManagerInitializer` is removed (`tools:node="remove"`); `MainApp` implements `Configuration.Provider`.
+- Keep `WorkManagerInitializer` removed (`tools:node="remove"`); `MainApp` implements `Configuration.Provider`.
 - Use `hiltViewModel()` in NavHost destinations; plain `viewModel()` crashes.
 - Glance receivers cannot use `@AndroidEntryPoint`; use `@EntryPoint` + `EntryPointAccessors.fromApplication()`.
-- Glance `provideContent {}` is not a coroutine scope; fetch data before calling it.
+- Glance `provideContent {}` lambda is not a coroutine scope; fetch the entry before calling.
 - `RECORD_AUDIO` must be in the manifest.
+- Recorder writes into encrypted `MediaSink`; no temp file. `MediaSink.close()` writes the GCM tag. Stop on `ON_STOP` (no background mic). Limit 2 minutes. Sweep orphans with `EntryRepository.sweepOrphanedMedia()`.
 
 ## Security & privacy invariants
 
@@ -50,8 +53,10 @@ python3 scripts/verify_privacy_invariants.py      # CI guard, run after assemble
 - **Key rotation must be crash-safe**: write the new ciphertext under the stored alias *before* deleting the old key, and prefer a fresh (timestamped) alias over re-creating a key in place.
 - **Keystore key requires an unlocked device** (`setUnlockedDeviceRequired(true)`). Check `DatabaseKeyManager.isAvailable()` before DB access; fail closed. A fresh install (no stored passphrase) counts as usable.
 - **Auth keys (per-use) need the CryptoObject ceremony.** A wrap key created with `setUserAuthenticationRequired(true)` rejects every cipher operation unless the cipher was authenticated by a `BiometricPrompt.CryptoObject`. The flow: `DatabaseKeyManager.prepareUnlock()` → `BiometricPrompt.authenticate(promptInfo, CryptoObject(session.cipher))` → `completeUnlock(session)`. Calling `getOrCreatePassphrase()` directly on an auth-wrapped passphrase throws and permanently locks the user out (this shipped broken in v0.3.0).
+- **Only `prepareUnlock`/`completeUnlock` may wrap or unwrap with an auth key.** Every other path in `DatabaseKeyManager` (`createFreshPassphrase`, `rotateKey`, `rotateKeyToNewAlias`) runs without a ceremony and must always use the *plain* device-bound key — wrapping with an auth key there throws `UserNotAuthenticatedException` and strands the user on the lost-key screen forever (v0.3.3 shipped this in `createFreshPassphrase`/`rotateKeyToNewAlias`: fresh install or "erase everything" → endless unlock loop, unaffected by reinstall since the bug is in code, not data). If the keystore cannot create the auth key, fall back to the plain key rather than aborting.
+- **A fresh install with the app lock on must create the auth key inside `prepareUnlock()`** — before the prompt, not lazily in `getOrCreatePassphrase()`. Creating a key needs no authentication; *using* one does. If the key is created after the ceremony, the fresh passphrase can never be wrapped and the journal is stuck. The session's cipher/alias travel in `UnlockSession` and are persisted only in `completeUnlock()`, so a cancelled prompt leaves no dangling alias.
 - **`isAvailable()` must not probe per-use keys with a plain cipher init** — the probe fails for auth keys even when unlocked. Check device-lock state and key *existence* instead.
-- **Key lost:** `DatabaseKeyManager.isKeyLost()` means entries cannot be decrypted (Keystore reset / key invalidated). Report via `KeyLostScreen` and offer `startOver`; never crash.
+- **Key lost:** `DatabaseKeyManager.isKeyLost()` means entries cannot be decrypted (Keystore reset / key invalidated). Report via `KeyLostScreen` and offer `startOver`; never crash. A device whose keystore cannot create the auth key falls back to the plain device-bound key — a fresh install must never end in an unlock loop.
 - **App lock:** `AppLockViewModel` gates the journal on the screen lock or fingerprint; the key manager follows the setting through the `AUTH_BOUND_PREF` mirror in `db_keys` (written by `SettingsRepository.setAppLockEnabled`), because the widget/worker path needs a synchronous check. Tests disable it (`AUTH_BOUND_PREF=false` or `DisableAppLockRule`).
 - **FLAG_SECURE** is set in `MainActivity`; `adb screencap` returns black. Use `uiautomator dump` in tests.
 - **No plaintext at rest.** Media AES-GCM encrypted to `filesDir/media/<uuid>.enc` (recordings `.pcm.enc`). EXIF stripped from JPEG, PNG **and HEIC/HEIF** (`ExifStripper` — iPhone default format). Recorder writes straight into the encrypted `MediaSink`; no temp file; stop on `ON_STOP`; 2-minute limit; sweep orphans with `EntryRepository.sweepOrphanedMedia()`.
@@ -90,6 +95,7 @@ python3 scripts/verify_privacy_invariants.py      # CI guard, run after assemble
 
 - Signed APK distribution (not Play Store). The release key lives in `keystore/` (git-ignored) and the repo secrets (`RELEASE_KEYSTORE_BASE64`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`). **Losing it means the app can never be updated again.**
 - Tagging (`git tag -a vX.Y.Z`) triggers `.github/workflows/release.yml`. `version.properties` is the single source of the version (`versionCode = major*10000 + minor*100 + patch`); the workflow refuses a tag/`versionName` mismatch. **Tag only after the CI run for that commit is green** — a tag points at a commit, and the release workflow builds exactly that code.
+- **Release candidates** (`versionName=0.3.4-rc1`, tag `v0.3.4-rc1`) are published as GitHub pre-releases, never `--latest` — the stable download URL (`releases/latest/download/app-release.apk`) must keep serving the last stable build. The workflow detects the `-` suffix in the tag. An RC uses the **same versionCode as its final version** (0.3.4-rc1 and 0.3.4 are both 304): the final build then installs over the candidate, and an installed RC is never treated as newer than the final. When the RC is approved, bump `versionName` (drop the suffix) and re-tag — no versionCode change.
 - The release workflow publishes the APK, its checksum and the R8 mapping; `verify_privacy_invariants.py` checks the signature is not the debug key.
 
 ## Conventions

@@ -221,20 +221,51 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
      * returns it, [completeUnlock] does the rest. Null means no ceremony is
      * needed (the wrap key is the plain master key) or the key is gone (the
      * caller shows the lost-key screen).
+     *
+     * On a journal that has no passphrase yet the key has to be created
+     * *here*: creating a key needs no authentication, but using one does.
+     * If the key were only created later in [getOrCreatePassphrase], the
+     * wrapping would happen outside the ceremony and the per-use key would
+     * reject it - the fresh journal would never be writable and the user
+     * would be stuck on the lost-key screen forever (v0.3.3 shipped that
+     * bug).
      */
     fun prepareUnlock(): UnlockSession? {
-        val alias = activeAuthAlias()
-        val key = CryptoManager.getKey(alias) ?: return null
+        var alias = activeAuthAlias()
+        var key = CryptoManager.getKey(alias)
+        if (key == null) {
+            if (!authWanted()) return null
+            // No key at all: create the auth key now so the fresh-passphrase
+            // ceremony can go through the prompt's CryptoObject. If the
+            // keystore refuses the auth key, fall back to the plain key -
+            // the journal still has to be creatable.
+            alias = defaultAuthAlias()
+            key = try {
+                CryptoManager.createAuthKey(alias)
+            } catch (e: CryptoUnavailableException) {
+                alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+                CryptoManager.getOrCreateKey(alias)
+            }
+            // activeAuthAlias() reads the stored alias: write the new one so
+            // [completeUnlock] stores the ciphertext under the same key.
+            prefs.edit().putString(AUTH_KEY_ALIAS, alias).apply()
+            return UnlockSession(
+                CryptoManager.newEncryptCipher(key, SecureRandomIv()),
+                isFresh = true,
+                storedCiphertext = null,
+                alias = alias
+            )
+        }
         if (!alias.endsWith(AUTH_ALIAS_SUFFIX)) return null
         val stored = prefs.getString(PASSPHRASE_KEY, null)
         return if (stored == null) {
             // There is no passphrase yet: it is created with the ceremony, so
             // the journal of a fresh install is bound to the user as well.
-            val iv = ByteArray(CryptoManager.IV_SIZE).also { SecureRandom().nextBytes(it) }
             UnlockSession(
-                CryptoManager.newEncryptCipher(key, iv),
+                CryptoManager.newEncryptCipher(key, SecureRandomIv()),
                 isFresh = true,
-                storedCiphertext = null
+                storedCiphertext = null,
+                alias = alias
             )
         } else {
             val blob = Base64.decode(stored, Base64.NO_WRAP)
@@ -242,10 +273,15 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             UnlockSession(
                 CryptoManager.newDecryptCipher(key, iv),
                 isFresh = false,
-                storedCiphertext = blob.copyOfRange(CryptoManager.IV_SIZE, blob.size)
+                storedCiphertext = blob.copyOfRange(CryptoManager.IV_SIZE, blob.size),
+                alias = alias
             )
         }
     }
+
+    /** A fresh IV for a cipher that will be authorized by the prompt. */
+    private fun SecureRandomIv(): ByteArray =
+        ByteArray(CryptoManager.IV_SIZE).also { SecureRandom().nextBytes(it) }
 
     /**
      * The second half of an unlock: the prompt succeeded, so [session]'s
@@ -261,7 +297,7 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             CryptoManager.encryptWithCipher(session.cipher, ByteArrayInputStream(passphrase), out)
             prefs.edit()
                 .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
-                .putString(AUTH_KEY_ALIAS, activeAuthAlias())
+                .putString(AUTH_KEY_ALIAS, session.alias)
                 .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
                 .apply()
         } else {
@@ -362,39 +398,21 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             System.currentTimeMillis()
         val newMediaKey = CryptoManager.createKey(newMediaAlias)
 
-        val newWrapAlias: String
-        val newWrapKey: SecretKey
-        if (authWanted()) {
-            val alias = defaultAuthAlias() + "_" + System.currentTimeMillis()
-            val key = try {
-                CryptoManager.createAuthKey(alias)
-            } catch (e: CryptoUnavailableException) {
-                null
-            }
-            if (key != null) {
-                newWrapAlias = alias
-                newWrapKey = key
-            } else {
-                // No auth key: fall back to the plain key. The passphrase is
-                // re-wrapped either way - a failed ceremony must never abort
-                // the rotation and strand the user.
-                newWrapAlias = newMediaAlias
-                newWrapKey = newMediaKey
-            }
-        } else {
-            // Without the app lock the passphrase shares the media key, as it
-            // did in the versions before the auth key existed.
-            newWrapAlias = newMediaAlias
-            newWrapKey = newMediaKey
-        }
-
+        // The passphrase is always re-wrapped with the new *plain* media key.
+        // An auth key created here could not be used: a key that requires
+        // user authentication per use rejects every cipher operation that
+        // was not authorized by a prompt, and this path runs after the
+        // ceremony (erase everything happens with the journal open). The
+        // binding to the user is re-established on the next unlock through
+        // [prepareUnlock] / [completeUnlock] - a wiped journal does not need
+        // to carry the old binding.
         val out = ByteArrayOutputStream()
-        CryptoManager.encryptWithKey(newWrapKey, ByteArrayInputStream(plaintext.toByteArray()), out)
+        CryptoManager.encryptWithKey(newMediaKey, ByteArrayInputStream(plaintext.toByteArray()), out)
 
         prefs.edit()
             .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
             .putString(KEY_ALIAS, newMediaAlias)
-            .putString(AUTH_KEY_ALIAS, newWrapAlias)
+            .putString(AUTH_KEY_ALIAS, newMediaAlias)
             .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
             .apply()
 
@@ -407,30 +425,15 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
     /** Creates a key of the current policy and a fresh passphrase. */
     private fun createFreshPassphrase(): ByteArray {
         val passphrase = ByteArray(PASSPHRASE_SIZE).also { SecureRandom().nextBytes(it) }
-        val alias: String
-        val key: SecretKey
-        if (authWanted()) {
-            alias = defaultAuthAlias()
-            key = try {
-                CryptoManager.createAuthKey(alias)
-            } catch (e: CryptoUnavailableException) {
-                // A device that says it can authenticate but whose keystore
-                // refuses the auth key would otherwise lock the user out
-                // forever: without a key the journal cannot be created, and
-                // the app would show the lost-key screen in an endless loop.
-                // The plain key is the fallback - it still requires the
-                // unlocked device, it just does not bind to the user.
-                CryptoManager.getOrCreateKey(
-                    CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-                )
-            }
-        } else {
-            // The passphrase key and the media key are separate: the media
-            // key must never be recreated, it would make the existing files
-            // unreadable (there is no per-file key version).
-            alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-            key = CryptoManager.getOrCreateKey(alias)
-        }
+        // This path runs without the biometric ceremony (app lock off, or the
+        // unlock came without a session), so it must never wrap with an auth
+        // key: a key that requires user authentication per use rejects every
+        // cipher operation that was not authorized by a prompt - the write
+        // below would throw and the user would end up on the lost-key screen
+        // forever. Binding to the user happens through [prepareUnlock] /
+        // [completeUnlock], which wrap inside the ceremony.
+        val alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+        val key = CryptoManager.getOrCreateKey(alias)
         storePassphrase(passphrase, key, alias)
         return passphrase
     }
@@ -439,14 +442,18 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
      * Re-wraps the passphrase with a key of the current specification.
      *
      * The new passphrase is written before the old key is deleted, so an
-     * interrupted rotation can never lose the database. The wrap type follows
-     * the current policy: an install whose passphrase was wrapped by the
-     * plain master key is re-wrapped by a key of the current version under
-     * its own alias - the media key must never be recreated here, it would
-     * make every photo and recording unreadable (there is no per-file key
-     * version). The old wrap key is only deleted when it protects nothing
-     * else: on installs that predate the versioning the wrap key is also the
-     * media key, and it has to survive.
+     * interrupted rotation can never lose the database. This path runs
+     * without a ceremony (it is called from [unlock] when the stored version
+     * lags behind), so it always re-wraps with the plain master key - an
+     * auth key created here could not be used until a prompt authorized it,
+     * and the rotation would throw and strand the user. An install whose
+     * passphrase was wrapped by an auth key therefore loses that binding
+     * here; it is re-established on the next lock/unlock cycle through
+     * [prepareUnlock] and [completeUnlock]. The media key must never be
+     * recreated here, it would make every photo and recording unreadable
+     * (there is no per-file key version). The old wrap key is only deleted
+     * when it protects nothing else: on installs that predate the versioning
+     * the wrap key is also the media key, and it has to survive.
      */
     private fun rotateKey(stored: String): ByteArray {
         val oldAlias = activeAuthAlias()
@@ -461,33 +468,8 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         )
         val passphrase = plaintext.toByteArray()
 
-        val newAlias: String
-        val newKey: SecretKey
-        if (authWanted() && prefs.getString(AUTH_KEY_ALIAS, null) != null) {
-            // The passphrase is already wrapped by an auth key of the current
-            // policy: keep the binding, only refresh the key itself. The new
-            // key gets a fresh alias, so the old one survives until the new
-            // ciphertext is written - a crash in between would otherwise lose
-            // the database.
-            val alias = defaultAuthAlias() + "_" + System.currentTimeMillis()
-            val key = try {
-                CryptoManager.createAuthKey(alias)
-            } catch (e: CryptoUnavailableException) {
-                null
-            }
-            if (key != null) {
-                newAlias = alias
-                newKey = key
-            } else {
-                // No auth key: fall back to the plain key rather than
-                // aborting the rotation and stranding the user.
-                newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-                newKey = CryptoManager.getOrCreateKey(newAlias)
-            }
-        } else {
-            newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-            newKey = CryptoManager.getOrCreateKey(newAlias)
-        }
+        val newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
+        val newKey = CryptoManager.getOrCreateKey(newAlias)
         val out = ByteArrayOutputStream()
         CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(passphrase), out)
 
@@ -546,12 +528,20 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
      * prompt authenticated. The cipher is prepared before the prompt and must
      * not be touched until the prompt succeeded - then [completeUnlock]
      * finishes the job. Created by [prepareUnlock].
+     *
+     * [alias] is the keystore alias of the key behind [cipher]. On a fresh
+     * install [prepareUnlock] creates the key before the prompt, so the
+     * stored alias is only written once the ceremony succeeded - a cancelled
+     * prompt must not leave an alias that points at a key that never wrapped
+     * anything.
      */
     class UnlockSession internal constructor(
         val cipher: Cipher,
         /** True when there is no stored passphrase yet: it is created now. */
         internal val isFresh: Boolean,
         /** The stored ciphertext without its IV prefix (null when [isFresh]). */
-        internal val storedCiphertext: ByteArray?
+        internal val storedCiphertext: ByteArray?,
+        /** Keystore alias of the key that produced [cipher]. */
+        internal val alias: String
     )
 }
