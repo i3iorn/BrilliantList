@@ -1,6 +1,7 @@
 package dev.schrammel.brilliantlist.ui
 
 import android.content.Context
+import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -130,6 +131,15 @@ class AppLockViewModel @Inject constructor(
      */
     fun prepareUnlock(): DatabaseKeyManager.UnlockSession? = keyManager.prepareUnlock()
 
+    /**
+     * True when the unlock failed in a way that means the journal cannot be
+     * opened again: the stored passphrase does not decrypt with the key that
+     * exists now (the key was replaced or invalidated). The activity shows
+     * the lost-key screen, which offers starting over.
+     */
+    private val _keyLost = MutableStateFlow(false)
+    val keyLost: StateFlow<Boolean> = _keyLost.asStateFlow()
+
     /** The user proved who they are. */
     fun unlockSucceeded(session: DatabaseKeyManager.UnlockSession?) {
         viewModelScope.launch {
@@ -143,6 +153,13 @@ class AppLockViewModel @Inject constructor(
                 }
                 _state.value = AppLockState.UNLOCKED
             } catch (e: Exception) {
+                // A failure here is not a re-locked journal: the prompt
+                // succeeded, so the cipher was authorized. The stored
+                // passphrase does not decrypt with the key that exists -
+                // the data is lost and the user has to be told, not sent
+                // into a silent retry loop.
+                Log.e(TAG, "Unlock failed after authentication", e)
+                _keyLost.value = true
                 _state.value = AppLockState.LOCKED
             }
         }
@@ -156,6 +173,7 @@ class AppLockViewModel @Inject constructor(
     }
 
     private companion object {
+        private const val TAG = "AppLockViewModel"
         /** The lock is asked for again after this many seconds by default. */
         const val LOCK_GRACE_MILLIS = 30_000L
     }

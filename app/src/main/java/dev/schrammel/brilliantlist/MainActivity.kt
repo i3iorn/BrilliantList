@@ -74,7 +74,11 @@ class MainActivity : FragmentActivity() {
                 // The key can be gone - the Keystore was reset, for example.
                 // The entries cannot be decrypted any more, so the app says
                 // so instead of crashing when the database is opened.
-                val keyLost = remember { keyManager.isKeyLost() }
+                // The unlock itself can also discover a lost key (the stored
+                // passphrase does not decrypt with the key that exists), so
+                // the ViewModel state is observed as well.
+                val unlockFailedKeyLost by lockViewModel.keyLost.collectAsState()
+                val keyLost = unlockFailedKeyLost || keyManager.isKeyLost()
 
                 when {
                     // The key cannot be used while the device is locked.
