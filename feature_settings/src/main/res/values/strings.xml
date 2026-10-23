@@ -6,6 +6,8 @@
     <string name="settings_section_about">About</string>
     <string name="settings_region">Crisis region</string>
     <string name="settings_region_unknown">Select a region</string>
+    <string name="settings_region_search">Search country or code</string>
+    <string name="settings_region_done">Done</string>
     <string name="settings_widget_interval">Widget refresh interval</string>
     <string name="settings_minutes">%1$d min</string>
     <string name="settings_hours">%1$d h</string>

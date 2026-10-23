@@ -534,3 +534,82 @@ All phases of v0.3.0 are implemented:
   emergency number 112. The region picker shows local names.
 - **Localisation:** Swedish translations are complete across all user-facing
   modules.
+
+---
+
+# v0.3.5 — "The world"
+
+**In one line:** the crisis page learns the rest of the world.
+
+v0.3.0 proved the pipeline on one country. The registry with its 24
+countries is already downloaded as CC0 data; the work now is to bring it
+in. It is a data release, not a feature release - the interface does not
+change, so the version stays 0.3.x.
+
+## Done when
+
+- The crisis page serves all 24 countries from the registry, and a unit test
+  per country fails the build when a number is missing or a `verifiedAt`
+  date is older than a year.
+- The emergency-number table has been checked by a human for all 24
+  countries.
+- The release ships after the update-on-a-real-phone check, the same seven
+  steps as every version.
+
+## The decisions
+
+| Question | Answer |
+|---|---|
+| Registry import: once, or refreshable? | **Refreshable.** The script is re-run when the registry updates; the generated file says it is generated, and the pipeline reports how old the data is. |
+| Does the app gain a JSON parser? | **No.** The script writes a Kotlin file at build time on the developer machine; the app stays parser-free and offline. |
+
+## Not in v0.3.5
+
+| Idea | Why not now |
+|---|---|
+| Sync, accounts, a server | The app has no internet permission on purpose. That is the product, not a limitation to fix. |
+| More capture types (video, drawings) | Every new type needs a player, an editor and a migration. The four we have are enough. |
+| Themes, colours | "Radical simplicity - every feature must justify its existence." |
+| More interface languages (German, FR, ES, ...) | They want a native speaker for the crisis wording. A bad translation in this app does harm. German is not a priority right now. |
+
+## The phases
+
+### Phase 1 - The helpline registry
+
+- `scripts/import_helplines.py` downloads the registry and writes
+  `core_model/.../HelplineCatalog.kt` for all 24 countries. The file says it
+  is generated; the script is the only thing that ever changes it.
+- The records keep what the data has: `localName`, description, hours,
+  whether the line is free and anonymous, the languages it answers in, and
+  `verifiedAt`.
+- **The emergency number stays hand-written.** Every country has one and the
+  registry does not cover it; it is the one thing in the crisis page that
+  has to be right, so it stays a small table that a human reviews.
+- The region picker lists all 24 countries with flag and local name.
+- Files: `scripts/import_helplines.py`, `core_model/.../HelplineCatalog.kt`,
+  `core_model/.../CrisisCatalog.kt`, `feature_crisis/CrisisScreen.kt`
+- Verify: a unit test per country - the numbers are there, the method (call,
+  text) is right, and the `verifiedAt` date is not older than a year. A
+  stale-data check reports the age of the dataset.
+
+### Phase 2 - The release
+
+The same seven steps as every version: the version bump, the changelog, the
+green pipeline, the update on a real phone, the tag, the download, the
+signature. `version.properties` becomes `0.3.5` / `versionCode 305`.
+
+## The risks
+
+| Risk | What happens | What we do about it |
+|---|---|---|
+| A wrong crisis number | Someone in a crisis calls a number that does not help. | The data comes from a verified registry with a date, the date is shown in the app, a per-country unit test fails the build on missing numbers, and the emergency number - the one number not in the registry - is hand-written and human-reviewed. |
+| The registry is not updated any more | The numbers get older. | The app shows the date the number was last checked, and a check reports how old the dataset is. |
+| The region picker gets crowded | 24 countries are harder to scan than 5. | The picker is a searchable list with flags and local names; the chosen region stays at the top. |
+
+## The open questions
+
+1. **The emergency numbers for the 24 countries.** They are stable facts, but
+   they have to be right. They are written out for review before Phase 1
+   ships.
+2. **Does the pipeline report data staleness in CI?** A check that fails when
+   `verifiedAt` is older than a year keeps the crisis page honest.

@@ -3,7 +3,69 @@
 The versions of the app. The version in `version.properties` is the one that
 is built, and the tag of a release has to match it.
 
-## 0.3.0 — not released yet
+## 0.3.5 — released 2026-10-23
+
+### The crisis page learns the rest of the world
+- The crisis page now serves all 24 countries of the open-helplines registry:
+  the helplines carry the name in the language of the country, the languages
+  they answer in, the opening hours and the day the number was last checked.
+  The data is CC0, imported with `scripts/import_helplines.py` - the app has
+  no internet permission, so the catalog is bundled.
+- The region picker is a searchable list with flags and the names in the
+  language of the country; the chosen region stays at the top.
+- The build now fails when a helpline has no number or no verified date, or
+  when the youngest data in the registry is older than a year
+  (`scripts/import_helplines.py --check` reports the age).
+- The emergency numbers stay hand-written: they are the one number that has
+  to be right, so they are reviewed, not imported.
+
+## 0.3.4 — released 2026-10-23
+
+### Under the hood
+- The key management was reworked: which key wraps what is decided once and
+  recorded, and every path that touches a key says which one it uses.
+- The release workflow can publish pre-releases: a tag with a suffix, for
+  example `v0.3.4-rc1`, becomes a GitHub pre-release and never takes over
+  the stable `app-release.apk` download URL.
+
+## 0.3.3 — released 2026-10-23
+
+### Fixes
+- On a device where the Keystore refuses the key that requires the user to
+  authenticate, the app falls back to the plain key. Before, a fresh journal
+  could not be created at all - the app asked for authentication, the key
+  could not be made, and the user was stuck.
+- On a fresh install the key is now created while the authentication prompt
+  is shown, inside the ceremony. Before, the wrapping happened outside of it
+  and the per-use key rejected it - a fresh journal could never be written.
+
+## 0.3.2 — released 2026-10-23
+
+### Fixes
+- When the unlock fails after a successful authentication - the stored
+  passphrase does not decrypt with the key that exists - the app shows the
+  lost-key screen, which offers starting over. Before, it silently fell back
+  to the lock screen and the user was sent into a retry loop that could
+  never succeed.
+
+## 0.3.1 — released 2026-10-23
+
+### Fixes
+- The unlock flow worked again: the warm-up created a new key on every start
+  instead of keeping the one that exists, which destroyed the key that the
+  stored passphrase and every photo and recording were wrapped with. It now
+  only creates the key when there is none.
+- The unlock goes through the authentication ceremony: the cipher the prompt
+  authorizes is used to unwrap the passphrase. Before, the prompt was shown
+  but the unwrap happened outside of it, and the per-use key rejected it.
+
+## 0.3.0 — released 2026-10-23
+
+**Note:** this release shipped with the bug that v0.3.1 fixes - on an
+installed v0.3.0 the warm-up destroyed the key on every start. If you are
+still on 0.3.0, install 0.3.1 or later before you write more entries; a
+journal that is on a device that started the 0.3.0 app more than once cannot
+be recovered.
 
 ### Security and privacy
 - The Keystore master key is now bound to the user: a second key that requires
@@ -45,7 +107,7 @@ is built, and the tag of a release has to match it.
   `values-sv/strings.xml` for the `app`, `feature_entry`, `feature_widget`,
   `feature_crisis`, `feature_settings`, and `core_ui` modules.
 
-## 0.2.0 — not released yet
+## 0.2.0 — released 2026-10-22
 
 ### The update path
 - The version comes from `version.properties` and the release refuses a tag
@@ -91,11 +153,6 @@ is built, and the tag of a release has to match it.
 - The app says that a photo in HEIC keeps the place it was taken.
 - The trash is a separate place: the capture actions are switched off there.
 - "Empty the trash".
-
-### The backup
-- The export is read back after it is written, so a broken export is reported
-  instead of discovered later.
-- The export says how many entries it wrote.
 
 ## 0.1.0
 

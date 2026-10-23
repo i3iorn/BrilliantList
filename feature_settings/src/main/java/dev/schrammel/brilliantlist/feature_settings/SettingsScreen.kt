@@ -4,13 +4,17 @@ import android.app.KeyguardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -19,8 +23,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -28,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -495,50 +498,115 @@ private fun ActionRow(
 /**
  * Region picker.
  *
- * A dropdown instead of a free text field: a typed region like "usa" or
- * "United States" silently fell back to the generic crisis resources before,
- * which is the worst possible failure mode on the crisis page.
+ * A searchable dialog instead of a dropdown or a free text field: a typed
+ * region like "usa" or "United States" silently fell back to the generic
+ * crisis resources before, which is the worst possible failure mode on the
+ * crisis page. The 24 countries of the registry are too many for a plain
+ * dropdown, so the list is searchable and shows the flag and the name in the
+ * language of the country - a person who does not speak English has to find
+ * their country too. The chosen country stays at the top.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RegionPicker(
     region: CrisisCountry?,
     onRegionChange: (CrisisCountry) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var open by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
+    Surface(
+        onClick = { open = true },
+        shape = MaterialTheme.shapes.extraSmall,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        OutlinedTextField(
-            value = region?.name ?: stringResource(R.string.settings_region_unknown),
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.settings_region)) },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            CrisisCatalog.countries.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.name) },
-                    onClick = {
-                        onRegionChange(option)
-                        expanded = false
-                    }
-                )
-            }
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = stringResource(R.string.settings_region),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = region?.let { "${flagEmoji(it.code)}  ${it.localName}" }
+                    ?: stringResource(R.string.settings_region_unknown),
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
+
+    if (open) {
+        var query by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { open = false },
+            title = { Text(stringResource(R.string.settings_region)) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.settings_region_search)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
+                        val shown = CrisisCatalog.countries
+                            .filter {
+                                query.isBlank() ||
+                                    it.name.contains(query, ignoreCase = true) ||
+                                    it.localName.contains(query, ignoreCase = true) ||
+                                    it.code.contains(query, ignoreCase = true)
+                            }
+                            .sortedWith(
+                                // The chosen country stays at the top, so it is
+                                // one tap away when the list comes back.
+                                compareByDescending<CrisisCountry> { it.code == region?.code }
+                                    .thenBy { it.name }
+                            )
+                        items(shown) { country ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .clickable {
+                                        onRegionChange(country)
+                                        open = false
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = flagEmoji(country.code),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Column(modifier = Modifier.padding(start = 12.dp)) {
+                                    Text(
+                                        text = country.localName,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    if (country.localName != country.name) {
+                                        Text(
+                                            text = country.name,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { open = false }) {
+                    Text(stringResource(R.string.settings_region_done))
+                }
+            }
+        )
+    }
 }
+
+/** The flag of a country as an emoji, derived from its code. No assets. */
+private fun flagEmoji(code: String): String = code
+    .map { String(Character.toChars(0x1F1E6 + (it - 'A'))) }
+    .joinToString("")
 
 /**
  * Asks for the passphrase of an export.

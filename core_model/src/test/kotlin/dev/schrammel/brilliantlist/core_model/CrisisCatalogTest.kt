@@ -5,6 +5,8 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 /**
  * The crisis page is the most safety critical screen in the app, so the
@@ -138,6 +140,38 @@ class CrisisCatalogTest {
             assertEquals("$name has the wrong number", phone, resource?.phone)
             assertEquals("$name should be callable", CrisisContact.CALL, resource?.contact)
             assertTrue("$name has no verified date", !resource?.verifiedAt.isNullOrBlank())
+        }
+    }
+
+    @Test
+    fun registryDataIsNotStale() {
+        // A crisis number that was last checked more than a year ago is a
+        // number nobody has confirmed in a year. The build fails until the
+        // registry is re-imported with scripts/import_helplines.py.
+        val oldest = HELPLINE_CATALOG.values.flatten()
+            .mapNotNull { runCatching { LocalDate.parse(it.verifiedAt) }.getOrNull() }
+            .minOrNull()
+        assertTrue("the registry data carries no verifiedAt dates", oldest != null)
+        val ageDays = ChronoUnit.DAYS.between(oldest, LocalDate.now())
+        assertTrue(
+            "the registry data is $ageDays days old (oldest: $oldest) - " +
+                "re-run scripts/import_helplines.py",
+            ageDays <= 365
+        )
+    }
+
+    @Test
+    fun everyRegistryHelplineCarriesAVerifiedDate() {
+        // A line without a date cannot be trusted: the screen would show no
+        // verification date for a number the app cannot vouch for.
+        HELPLINE_CATALOG.values.flatten().forEach { helpline ->
+            assertTrue(
+                "${helpline.id} has no verifiedAt date",
+                helpline.verifiedAt.isNotBlank()
+            )
+            runCatching { LocalDate.parse(helpline.verifiedAt) }.onFailure {
+                throw AssertionError("${helpline.id} has a malformed date: ${helpline.verifiedAt}")
+            }
         }
     }
 }
