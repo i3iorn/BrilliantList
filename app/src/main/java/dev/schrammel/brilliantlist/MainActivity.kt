@@ -41,6 +41,9 @@ class MainActivity : FragmentActivity() {
 
     private lateinit var biometricPrompt: BiometricPrompt
 
+    /** The unlock in progress, when it needs the crypto ceremony. */
+    private var pendingSession: DatabaseKeyManager.UnlockSession? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -55,7 +58,9 @@ class MainActivity : FragmentActivity() {
                 override fun onAuthenticationSucceeded(
                     result: BiometricPrompt.AuthenticationResult
                 ) {
-                    lockViewModel.unlockSucceeded()
+                    val session = pendingSession
+                    pendingSession = null
+                    lockViewModel.unlockSucceeded(session)
                 }
             }
         )
@@ -128,6 +133,15 @@ class MainActivity : FragmentActivity() {
             .setSubtitle(getString(R.string.app_lock_prompt_subtitle))
             .setAllowedAuthenticators(authenticators)
             .build()
-        biometricPrompt.authenticate(promptInfo)
+        // A passphrase wrapped by an auth key can only be opened through a
+        // cipher the prompt authenticated: the session's cipher goes into the
+        // CryptoObject, the prompt returns it on success.
+        val session = lockViewModel.prepareUnlock()
+        pendingSession = session
+        if (session != null) {
+            biometricPrompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(session.cipher))
+        } else {
+            biometricPrompt.authenticate(promptInfo)
+        }
     }
 }

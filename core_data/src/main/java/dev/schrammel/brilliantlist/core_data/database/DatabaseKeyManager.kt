@@ -9,6 +9,7 @@ import dev.schrammel.brilliantlist.core_encryption.CryptoUnavailableException
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.security.SecureRandom
+import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.inject.Inject
 
@@ -98,7 +99,11 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
     fun warmUp() {
         // Only warm up the master key (for media). The passphrase needs the
         // auth key, which would prompt the user before they unlocked the app.
-        runCatching { CryptoManager.createKey(activeAlias()) }
+        // getOrCreateKey and not createKey: createKey REPLACES an existing
+        // key, so calling it here destroyed the key that the stored
+        // passphrase and the media files were wrapped with (v0.3.0 lost
+        // every existing journal that way).
+        runCatching { CryptoManager.getOrCreateKey(activeAlias()) }
     }
 
     /**
@@ -107,7 +112,7 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
      * before the database can be opened.
      */
     private fun defaultAuthAlias(): String =
-        CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + "_auth"
+        CryptoManager.aliasFor(CryptoManager.KEY_VERSION) + AUTH_ALIAS_SUFFIX
 
     /**
      * Whether a passphrase that is written from now on is wrapped by an auth
@@ -186,9 +191,12 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         // A key that does not exist yet counts as usable: there is nothing to
         // unlock, it is created together with the database.
         if (prefs.getString(PASSPHRASE_KEY, null) == null) return true
-        // The auth key requires user authentication. The key is unusable
-        // while the device is locked.
-        return CryptoManager.isKeyUsable(activeAuthAlias())
+        // Whether the wrap key can be *used* is not decided by a probe: an
+        // auth key that requires user authentication per use is only usable
+        // through the biometric ceremony (see [prepareUnlock]), so a plain
+        // probe would report "locked" even on an unlocked device. The device
+        // lock state is checked above, so the key existing is enough here.
+        return CryptoManager.getKey(activeAuthAlias()) != null
     }
 
     /**
@@ -201,6 +209,72 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
     fun isKeyLost(): Boolean {
         if (prefs.getString(PASSPHRASE_KEY, null) == null) return false
         return CryptoManager.getKey(activeAuthAlias()) == null
+    }
+
+    /**
+     * The first half of an unlock that needs the user.
+     *
+     * A key that requires user authentication per use can only be used
+     * through a cipher that the system prompt authenticated
+     * ([androidx.biometric.BiometricPrompt.CryptoObject]). The cipher has to
+     * be prepared before the prompt and used after it succeeded - this
+     * returns it, [completeUnlock] does the rest. Null means no ceremony is
+     * needed (the wrap key is the plain master key) or the key is gone (the
+     * caller shows the lost-key screen).
+     */
+    fun prepareUnlock(): UnlockSession? {
+        val alias = activeAuthAlias()
+        val key = CryptoManager.getKey(alias) ?: return null
+        if (!alias.endsWith(AUTH_ALIAS_SUFFIX)) return null
+        val stored = prefs.getString(PASSPHRASE_KEY, null)
+        return if (stored == null) {
+            // There is no passphrase yet: it is created with the ceremony, so
+            // the journal of a fresh install is bound to the user as well.
+            val iv = ByteArray(CryptoManager.IV_SIZE).also { SecureRandom().nextBytes(it) }
+            UnlockSession(
+                CryptoManager.newEncryptCipher(key, iv),
+                isFresh = true,
+                storedCiphertext = null
+            )
+        } else {
+            val blob = Base64.decode(stored, Base64.NO_WRAP)
+            val iv = blob.copyOfRange(0, CryptoManager.IV_SIZE)
+            UnlockSession(
+                CryptoManager.newDecryptCipher(key, iv),
+                isFresh = false,
+                storedCiphertext = blob.copyOfRange(CryptoManager.IV_SIZE, blob.size)
+            )
+        }
+    }
+
+    /**
+     * The second half of an unlock: the prompt succeeded, so [session]'s
+     * cipher is authorized. Decrypts (or creates and stores) the passphrase.
+     */
+    @Synchronized
+    fun completeUnlock(session: UnlockSession): ByteArray {
+        cachedPassphrase?.let { return it }
+        val passphrase: ByteArray
+        if (session.isFresh) {
+            passphrase = ByteArray(PASSPHRASE_SIZE).also { SecureRandom().nextBytes(it) }
+            val out = ByteArrayOutputStream()
+            CryptoManager.encryptWithCipher(session.cipher, ByteArrayInputStream(passphrase), out)
+            prefs.edit()
+                .putString(PASSPHRASE_KEY, Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
+                .putString(AUTH_KEY_ALIAS, activeAuthAlias())
+                .putInt(KEY_VERSION, CryptoManager.KEY_VERSION)
+                .apply()
+        } else {
+            val out = ByteArrayOutputStream()
+            CryptoManager.decryptWithCipher(
+                session.cipher,
+                ByteArrayInputStream(requireNotNull(session.storedCiphertext)),
+                out
+            )
+            passphrase = out.toByteArray()
+        }
+        cachedPassphrase = passphrase
+        return passphrase
     }
 
     /**
@@ -242,11 +316,11 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         val stored = prefs.getString(PASSPHRASE_KEY, null) ?: return
         // Only an auth-wrapped passphrase has to change. The alias records
         // the type of the key, so this check needs no unlock.
-        if (prefs.getString(AUTH_KEY_ALIAS, null)?.endsWith("_auth") != true) return
+        if (prefs.getString(AUTH_KEY_ALIAS, null)?.endsWith(AUTH_ALIAS_SUFFIX) != true) return
 
         val oldAuthAlias = prefs.getString(AUTH_KEY_ALIAS, null)
         val newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-        val newKey = CryptoManager.createKey(newAlias)
+        val newKey = CryptoManager.getOrCreateKey(newAlias)
         val out = ByteArrayOutputStream()
         CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(plaintext), out)
         prefs.edit()
@@ -326,7 +400,7 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
             // key must never be recreated, it would make the existing files
             // unreadable (there is no per-file key version).
             val alias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-            storePassphrase(passphrase, CryptoManager.createKey(alias), alias)
+            storePassphrase(passphrase, CryptoManager.getOrCreateKey(alias), alias)
         }
         return passphrase
     }
@@ -361,12 +435,15 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         val newKey: SecretKey
         if (authWanted() && prefs.getString(AUTH_KEY_ALIAS, null) != null) {
             // The passphrase is already wrapped by an auth key of the current
-            // policy: keep the binding, only refresh the key itself.
-            newAlias = defaultAuthAlias()
+            // policy: keep the binding, only refresh the key itself. The new
+            // key gets a fresh alias, so the old one survives until the new
+            // ciphertext is written - a crash in between would otherwise lose
+            // the database.
+            newAlias = defaultAuthAlias() + "_" + System.currentTimeMillis()
             newKey = CryptoManager.createAuthKey(newAlias)
         } else {
             newAlias = CryptoManager.aliasFor(CryptoManager.KEY_VERSION)
-            newKey = CryptoManager.createKey(newAlias)
+            newKey = CryptoManager.getOrCreateKey(newAlias)
         }
         val out = ByteArrayOutputStream()
         CryptoManager.encryptWithKey(newKey, ByteArrayInputStream(passphrase), out)
@@ -403,6 +480,9 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         private const val AUTH_KEY_ALIAS = "auth_key_alias"
         private const val PASSPHRASE_SIZE = 32
 
+        /** The suffix that marks a wrap key as one that requires the user. */
+        private const val AUTH_ALIAS_SUFFIX = "_auth"
+
         /**
          * The mirror of the app lock setting. Written by
          * [dev.schrammel.brilliantlist.core_data.repository.SettingsRepository]
@@ -415,4 +495,20 @@ class DatabaseKeyManager @Inject constructor(private val context: Context) {
         /** The version of the key that was used before the keys were versioned. */
         const val LEGACY_VERSION = 1
     }
+
+    /**
+     * An unlock that is in progress.
+     *
+     * A per-use auth key can only be used through a cipher that the system
+     * prompt authenticated. The cipher is prepared before the prompt and must
+     * not be touched until the prompt succeeded - then [completeUnlock]
+     * finishes the job. Created by [prepareUnlock].
+     */
+    class UnlockSession internal constructor(
+        val cipher: Cipher,
+        /** True when there is no stored passphrase yet: it is created now. */
+        internal val isFresh: Boolean,
+        /** The stored ciphertext without its IV prefix (null when [isFresh]). */
+        internal val storedCiphertext: ByteArray?
+    )
 }

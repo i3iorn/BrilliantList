@@ -124,13 +124,23 @@ class AppLockViewModel @Inject constructor(
         backgroundedAt = 0
     }
 
+    /**
+     * The first half of an unlock: the cipher that must go into the prompt's
+     * CryptoObject, or null when no ceremony is needed.
+     */
+    fun prepareUnlock(): DatabaseKeyManager.UnlockSession? = keyManager.prepareUnlock()
+
     /** The user proved who they are. */
-    fun unlockSucceeded() {
+    fun unlockSucceeded(session: DatabaseKeyManager.UnlockSession?) {
         viewModelScope.launch {
             try {
-                // Unwrapping the passphrase triggers the biometric or device
-                // credential prompt. The database cannot be opened without it.
-                keyManager.getOrCreatePassphrase()
+                // The session carries the cipher the prompt authorized; a
+                // plain-key unlock has none and opens the database directly.
+                if (session != null) {
+                    keyManager.completeUnlock(session)
+                } else {
+                    keyManager.getOrCreatePassphrase()
+                }
                 _state.value = AppLockState.UNLOCKED
             } catch (e: Exception) {
                 _state.value = AppLockState.LOCKED

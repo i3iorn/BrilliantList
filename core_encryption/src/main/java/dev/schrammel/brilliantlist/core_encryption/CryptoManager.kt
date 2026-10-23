@@ -163,6 +163,16 @@ object CryptoManager {
         keyStore.getKey(alias, null) as? SecretKey
     }.getOrNull()
 
+    /**
+     * The key under [alias], creating it only when there is none.
+     *
+     * [createKey] replaces an existing key, so it must only be called for an
+     * alias that is known to be free - calling it on an alias that already
+     * protects data makes that data unreadable forever. This is the safe
+     * variant for warm-up and "the key should exist by now" paths.
+     */
+    fun getOrCreateKey(alias: String): SecretKey = getKey(alias) ?: createKey(alias)
+
     /** Removes the key stored under [alias], if there is one. */
     fun deleteKey(alias: String) {
         runCatching {
@@ -256,5 +266,41 @@ object CryptoManager {
             read += r
         }
         return iv
+    }
+
+    /**
+     * A decrypting cipher for a blob that starts with the IV prefix.
+     *
+     * This exists for the biometric ceremony: a key that requires user
+     * authentication per use can only be used through a cipher that was
+     * authenticated in a [androidx.biometric.BiometricPrompt.CryptoObject].
+     * The caller prepares this cipher before the prompt, and uses it only
+     * after the authentication succeeded.
+     */
+    fun newDecryptCipher(key: SecretKey, iv: ByteArray): Cipher {
+        val cipher = Cipher.getInstance(AES_MODE)
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_SIZE, iv))
+        return cipher
+    }
+
+    /** An encrypting cipher with the given [iv] (see [newDecryptCipher]). */
+    fun newEncryptCipher(key: SecretKey, iv: ByteArray): Cipher {
+        val cipher = Cipher.getInstance(AES_MODE)
+        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_SIZE, iv))
+        return cipher
+    }
+
+    /** Decrypts [input] into [output] with an already authenticated [cipher]. */
+    fun decryptWithCipher(cipher: Cipher, input: InputStream, output: OutputStream) {
+        CipherInputStream(input, cipher).use { cipherIn ->
+            cipherIn.copyTo(output)
+        }
+    }
+
+    /** Encrypts [input] into [output] with an already authenticated [cipher]. */
+    fun encryptWithCipher(cipher: Cipher, input: InputStream, output: OutputStream) {
+        CipherOutputStream(output, cipher).use { cipherOut ->
+            input.copyTo(cipherOut)
+        }
     }
 }
