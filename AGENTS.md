@@ -1,18 +1,30 @@
 # AGENTS.md
 
-## Build & verify
+## Project
+
+BrilliantList — privacy-first Android journaling app (Kotlin, Compose, Room+SQLCipher, Hilt, Glance, WorkManager).
+Package root: `dev.schrammel.brilliantlist`. Product rules live in `README.md`, the security posture in `SECURITY.md`, the crypto/media design in `ENCRYPTION_MEDIA_PIPELINE.md`.
+
+## Build & verify (Windows: `.\gradlew.bat`, POSIX: `./gradlew`)
 
 ```bash
-./gradlew assembleDebug :core_model:test :core_data:testDebugUnitTest :feature_entry:testDebugUnitTest   # CI build command
-./gradlew :feature_entry:assembleDebug   # faster, but only compiles core_model/core_data/core_encryption transitively
-python3 scripts/verify_privacy_invariants.py   # run after assembleDebug
+./gradlew assembleDebug                    # compile everything (CI does this)
+./gradlew :app:assembleDebug               # debug APK
+./gradlew :core_model:test                 # pure Kotlin unit tests (no device)
+./gradlew :app:testDebugUnitTest
+./gradlew :feature_entry:testDebugUnitTest
+./gradlew :core_data:connectedDebugAndroidTest        # needs a device/emulator
+./gradlew :core_encryption:connectedDebugAndroidTest
+./gradlew :feature_entry:connectedDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest   # includes the accessibility checks
+python3 scripts/verify_privacy_invariants.py          # CI guard, run after assembleDebug
 ```
 
-- CI (JDK 21) runs `assembleDebug :core_model:test :core_data:testDebugUnitTest :feature_entry:testDebugUnitTest`, builds the signed release APK and runs the privacy script. A second job runs instrumented tests on an emulator.
-- Instrumented vs JVM: anything touching `AndroidKeyStore`, SQLCipher or `MediaPlayer` must stay in `src/androidTest` (device required). Pure logic belongs in `core_model` (plain JVM module).
-- Lint needs network on first run (pulls KMP JVM/desktop artifacts). It fails offline on a pristine checkout — not a code problem.
-- Toolchain: Gradle 9.4.1, AGP 9.2.0, Kotlin 2.2.10, KSP 2.3.12, Hilt 2.60.1, compileSdk 36, JDK 21. JDK auto-downloads via foojay.
-- Room codegen runs through KSP (including `kspAndroidTest` in `core_data` for the migration test).
+- CI (`.github/workflows/ci.yml`, JDK 21) runs `assembleDebug :core_model:test :core_data:testDebugUnitTest :feature_entry:testDebugUnitTest`, builds the **signed** release APK and then `scripts/verify_privacy_invariants.py`. A second job runs the instrumented tests on an emulator, so the accessibility, crypto and backup tests are part of the build.
+- The instrumented job needs three things that are easy to forget: **disk** (the emulator wants seven gigabytes for the user data partition, so the runner frees the NDK and the old platforms first), a **screen lock** (the keystore cannot create a key that is bound to the unlocked device without one, so the emulator gets a pin) and the **full system image** (the image for automated tests has no keystore that can do that).
+- `lint` needs network on first run: its classpath pulls the JVM/desktop variants of the KMP artifacts (`datastore-preferences-jvm`, `material-icons-core-desktop`) which are not in the local cache. It fails offline **on a pristine checkout too** — not a code problem.
+- **Instrumented vs JVM**: anything touching `AndroidKeyStore`, SQLCipher or `MediaPlayer` must stay in `src/androidTest` (device required). Pure logic belongs in `core_model` (a plain JVM module) so it can be unit tested — the crisis catalog and the drag-reorder math live there for exactly that reason.
+- Toolchain: Gradle 9.4.1, AGP 9.2.0, Kotlin 2.2.10, KSP 2.3.12, Hilt 2.60.1, compileSdk 36, JDK 21 (`jvmToolchain(21)`).
 
 ## Architecture & modules
 
@@ -23,7 +35,6 @@ python3 scripts/verify_privacy_invariants.py   # run after assembleDebug
 | `core_data` | Room (`AppDatabase`, SQLCipher), `DatabaseKeyManager`, `EntryRepository`, `SettingsRepository`, media pipeline, backups. |
 | `core_ui` | Shared Compose theme/components. |
 | `feature_entry` | Capture & edit screen. Largest feature module. |
-| `feature_list` | Main journal list, favourites, trash. |
 | `feature_crisis` | Crisis screen; pulls from `core_model` catalog. |
 | `feature_settings` | Preferences (DataStore Preferences, key `settings`). |
 | `feature_widget` | Glance widget + `WidgetRotationWorker`. |
@@ -43,7 +54,6 @@ python3 scripts/verify_privacy_invariants.py   # run after assembleDebug
 - **Media files (photos/audio) are individually encrypted** with the master key, stored as `media/<uuid>.enc`. EXIF metadata is stripped on ingest (`ExifStripper`); JPEG, PNG and HEIC/HEIF are covered — keep stripping for any new format.
 - **Backups are user-passphrase encrypted** (`EntryRepository.exportTo/importFrom`), never by the Keystore key — they must survive a device change. Keep the backup format versioned and backward-compatible.
 - **Flag Secure**: journal screens set `FLAG_SECURE` to prevent screenshots. New screens that show entry content must do the same.
-- **App lock**: lock the journal behind a user-facing lock, never behind a simple timeout that unlocks on resume.
 
 ## Data-layer rules
 

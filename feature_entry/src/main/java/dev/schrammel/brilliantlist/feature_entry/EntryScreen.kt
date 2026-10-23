@@ -212,7 +212,8 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                     // Favorites toggle
                     IconToggleButton(
                         checked = favoritesOnly,
-                        onCheckedChange = { viewModel.setFavoritesOnly(!favoritesOnly) }
+                        onCheckedChange = { viewModel.setFavoritesOnly(!favoritesOnly) },
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = if (favoritesOnly) {
@@ -229,7 +230,8 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                         onCheckedChange = {
                             showSearch = !showSearch
                             if (!showSearch) viewModel.setQuery("")
-                        }
+                        },
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Search,
@@ -238,7 +240,10 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                     }
                     // Trash toggle / Back to entries
                     if (showTrash) {
-                        IconButton(onClick = { showTrash = false }) {
+                        IconButton(
+                            onClick = { showTrash = false },
+                            modifier = Modifier.size(48.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.entry_show_entries)
@@ -251,7 +256,8 @@ fun EntryScreen(viewModel: EntryViewModel = hiltViewModel()) {
                                 showTrash = true
                                 showSearch = false
                                 viewModel.setQuery("")
-                            }
+                            },
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Delete,
